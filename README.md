@@ -28,10 +28,11 @@ the a = 1
 ```
 arithmatic is evaluated from left to right perens up the queue so 
 ```
+#outputs 1
 print(1+1/2)
 
 ```
-outputs 1
+
 arrays like c and golang but dont have the ability to go across a line\
 ```
 the array = {1,2,3}
