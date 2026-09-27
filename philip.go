@@ -29,6 +29,7 @@ type variable interface {
 }
 
 //interface so big i had to auto generate it
+//this might need to be fused with variable
 type arithmaticable interface {
 	add(variable,variable)variable
 	sub(variable,variable)variable
