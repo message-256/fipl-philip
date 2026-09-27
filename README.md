@@ -40,7 +40,7 @@ arrays like c and golang but dont have the ability to go across a line\
 ```
 the array = {1,2,3}
 ```
-function calls are normal\
+function calls are normal
 ```
 fx(1)
 ```
@@ -52,3 +52,17 @@ filename:fx\
 (input int)
 print(input)
 ```
+returns are just types\
+filename:fy
+```
+(input int)(int)
+return input
+```
+as well in theory multireturns are supported(i have to add a unit test for this)\
+filename:fz
+```
+(input int)(int,int)
+return input,1
+
+```
+
