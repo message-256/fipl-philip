@@ -13,7 +13,7 @@ and then oh no! this function relies on this other struct better glue these toge
 philip does not solve this, at least not technically. you still have to deal with a whole bunch of files in you're codebase infact it's worse.\
 however you dont have to grep for functions anymore. because the functions can be found inside the file browser(yes i have gotten to the point).\
 philips main thing is that files are functions and functions are files.\
-so you can see the structure of a codebase pretty well without having to look inside a single file(mutual recursion might look a little weird and you do still have to check the includes to see how things connect)\
+so you can see the structure of a codebase pretty well without having to look inside a single file(mutual recursion might look a little weird and you do still have to check the includes to see how things connect)
 # syntax 
 ill explain in depth later but\
 ifs like ada\
