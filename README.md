@@ -19,7 +19,7 @@ so you can see the structure of a codebase pretty well without having to look in
 # syntax 
 ill explain in depth later but\
 ifs like ada\
-for is like ada and golang(still need to implement the i = 0; i<something; i++ thong)\
+for is like ada and golang(still need to implement the i = 0; i<something; i++ thing)\
 arrays like c and golang but dont have the ability to go across a line\
 function calls are normal\
 functions must have their stuff at the top of the file(white space is allowed )
