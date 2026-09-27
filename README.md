@@ -18,7 +18,7 @@ philips main thing is that files are functions and functions are files.\
 so you can see the structure of a codebase pretty well without having to look inside a single file(mutual recursion might look a little weird and you do still have to check the includes to see how things connect)
 # syntax 
 ill explain in depth later but\
-ifs like ada\
+ifs like ada
 ```
 if cond then
 #  dothis
