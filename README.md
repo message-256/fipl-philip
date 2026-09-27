@@ -17,7 +17,7 @@ else
 # dothat
 end if
 ```
-for is like ada and golang(still need to implement the i = 0; i<something; i++ thing)\
+for is like ada syntactically and golang in meaning(still need to implement the i = 0; i<something; i++ thing)\
 ```
 for cond loop
 #  dothis until cond is false
