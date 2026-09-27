@@ -26,6 +26,12 @@ variables are declared starting with "the" they do not have type annotation
 ```
 the a = 1
 ```
+arithmatic is evaluated from left to right perens up the queue so 
+```
+print(1+1/2)
+
+```
+outputs 1
 arrays like c and golang but dont have the ability to go across a line\
 ```
 the array = {1,2,3}
