@@ -46,7 +46,7 @@ fx(1)
 ```
 functions must have their stuff at the top of the file(white space is allowed )\
 args must have type annotation(weird i know)\
-filename:fx\
+filename:fx
 ```
 
 (input int)
