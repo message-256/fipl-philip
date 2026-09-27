@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"philip/lexer"
+	"github.com/message-256/fipl-philip/lexer"
 	"strconv"
 	"strings"
 	"unicode"
@@ -581,17 +581,17 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 			}
 		} else if ast[0].Value() == "the" {
 			n := slices.IndexFunc(ast,func(ast lexer.Ast)bool{return ast.Value() == "="})
-			assignedtolist := lexer.Split(ast[:n],lexer.Looker{Value:","})
+			assignedtolist := lexer.Split(ast[1:n],lexer.Looker{Value:","})
 			if len(assignedtolist) == 1 {
 				var val variable
 				val ,err = usages.valueof(ast[n+1:])
 				if err != nil {
 					return
 				}
-				fmt.Println(val)
 				err = usages.stuff.New(ast[1],val)
 			} else {
 				var vals []variable
+				
 				vals,err = usages.tuple(ast[n+1:])
 				if err != nil {
 					return 
@@ -602,6 +602,7 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 				}
 				for i := range assignedtolist {
 					err = errors.Join(err,usages.stuff.New(assignedtolist[i][0],vals[i]))
+
 				}
 			}
 			if err != nil {
