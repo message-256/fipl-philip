@@ -19,7 +19,35 @@ so you can see the structure of a codebase pretty well without having to look in
 # syntax 
 ill explain in depth later but\
 ifs like ada\
+```
+if cond then
+#  dothis
+else
+# dothat
+end if
+```
 for is like ada and golang(still need to implement the i = 0; i<something; i++ thing)\
+```
+for cond loop
+#  dothis until cond is false
+end loop
+```
+variables are declared starting with the 
+```
+the a = 1
+```
 arrays like c and golang but dont have the ability to go across a line\
+```
+the array = {1,2,3}
+```
 function calls are normal\
-functions must have their stuff at the top of the file(white space is allowed )
+```
+fx(1)
+```
+functions must have their stuff at the top of the file(white space is allowed )\
+filename:fx\
+```
+
+(input int)
+print(input)
+```
