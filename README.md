@@ -32,7 +32,7 @@ for cond loop
 #  dothis until cond is false
 end loop
 ```
-variables are declared starting with the 
+variables are declared starting with "the" they do not have type annotation
 ```
 the a = 1
 ```
@@ -45,6 +45,7 @@ function calls are normal\
 fx(1)
 ```
 functions must have their stuff at the top of the file(white space is allowed )\
+args must have type annotation(weird i know)\
 filename:fx\
 ```
 
