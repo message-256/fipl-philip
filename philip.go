@@ -27,7 +27,7 @@ type variable interface {
 	assign(variable) error
 	
 }
-
+type variables map[string]*variable
 //interface so big i had to auto generate it
 //this might need to be fused with variable
 type arithmaticable interface {
@@ -47,7 +47,7 @@ type arithmaticable interface {
 
 
 }
-type variables map[string]*variable
+
 
 type function struct {
 	path string
@@ -57,6 +57,7 @@ type function struct {
 	returnnames []string
 	
 }
+
 type functions map[string]function
 type interpreter struct {
 	funcs functions
