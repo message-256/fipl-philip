@@ -58,11 +58,3 @@ filename:fy
 (input int)(int)
 return input
 ```
-as well in theory multireturns are supported(i have to add a unit test for this)\
-filename:fz
-```
-(input int)(int,int)
-return input,1
-
-```
-
