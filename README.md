@@ -3,7 +3,7 @@ a structured programming language for the grepless.\
 warning: it has a lot of bugs as well it is primary garbage in garbage out so you might not necessarily get an error if you're wrong(even then it might be terribly unheplful)
 # design
 so have you ever been in a codebase and been like "wait where did they put this code?".\
-i have its a dumb question made by a dumb problem over delegation(yes i just made this term up).\
+i have. its a dumb question. made by a dumb problem called over delegation(yes i just made this term up).\
 what is over delegation?\
 in my eyes its when you put code in places so that you dont have to look at it either because you've overcomplicated things.\
 or because invented some boiler for yourself.\
