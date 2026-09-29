@@ -771,10 +771,10 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 			for scanner.Scan() {
 				line = scanner.Text()
 				ast ,err := lexer.Lex(line)
-				if ast != nil {
-					if ast[0].Value() == "end" && ast[len(ast)].Value() == "loop"{
+				if ast != nil && len(ast) >= 2 {
+					if ast[0].Value() == "end" && ast[len(ast)-1].Value() == "loop"{
 						sp--
-					} else if ast[0].Value() == "for" && ast[len(ast)].Value() == "loop" {
+					} else if ast[0].Value() == "for" && ast[len(ast)-1].Value() == "loop" {
 						sp++
 					}
 				}
