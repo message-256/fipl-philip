@@ -27,9 +27,8 @@ type variable interface {
 	assign(variable) error
 	
 }
-type variables map[string]*variable
+
 //interface so big i had to auto generate it
-//this might need to be fused with variable
 type arithmaticable interface {
 	add(variable,variable)variable
 	sub(variable,variable)variable
@@ -47,17 +46,15 @@ type arithmaticable interface {
 
 
 }
-
+type variables map[string]*variable
 
 type function struct {
 	path string
 	args []variable
 	returns []variable
 	argnames []string
-	returnnames []string
 	
 }
-
 type functions map[string]function
 type interpreter struct {
 	funcs functions
@@ -76,6 +73,7 @@ type internalArray struct {
 	stuff []variable
 	scalar string
 }
+
 func (arr* internalArray) asstring() (string,error){
 	return "",errors.New("cant get value of type string from int")
 }
@@ -214,6 +212,7 @@ func (arr* internalArray)String() string {
 	return collector
 	
 }
+
 func newInternalInt(i int) variable {
 	return &internalInt{
 		value:i,
@@ -236,6 +235,24 @@ func newInternalArray(v []variable ) variable{
 		scalar:name,
 		stuff:v,
 	}
+}
+func copyof(v variable) variable {
+	switch(v.realtype()){
+		case "string":
+			s,_ := v.asstring()
+			return newInternalString(s)
+		case "int":
+			i,_ := v.asint()
+			return newInternalInt(i)
+		case "[]":
+			var a1 []variable
+			a2,_ := v.(*internalArray)
+			for i := range a2.stuff {
+				a1 = append(a1,copyof(a2.stuff[i]))
+			}
+			return newInternalArray(a1)
+	}
+	return nil
 }
 func newVariableOfType(typename string)(variable,error) {
 	switch(typename){
@@ -433,10 +450,11 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 		return newInternalInt(i),err
 	} else {
 		returned, ok := context.stuff[this[0].Value()]
+		
 		if !ok {
 			return nil, errors.New("variable name not found \"" + this[0].Value() + "\"")
 		}
-		return *returned, nil
+		return copyof(*returned), nil
 	}
 	return nil, nil
 }
@@ -470,6 +488,9 @@ func (context variables)New(this lexer.Ast,initial variable) error {
 	*context[this.Value()] = initial
 	return nil
 }
+func itlookslikeassignment(ast []lexer.Ast) bool {
+	return slices.ContainsFunc(ast,func(a lexer.Ast) bool {return a.Value() == "="})
+}
 func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword string,err error){
  	if usages.stuff == nil {
 		usages.stuff = make(variables)
@@ -495,12 +516,18 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 			return
 		}
 		if ast == nil {
-		} else if len(ast) < 2 && ast[0].Value() != "return"{
+		} else if len(ast) < 2 && ast[0].Value() != "return" && ast[0].Value() != "break" && ast[0].Value() != "continue"{
 			err = errors.New("cant think of any reason to have a like with less that 2 tokens on it")
 			return
+		} else if ast[0].Value() == "break" {
+			keyword = "break"
+			return	
+		} else if ast[0].Value() == "continue" {
+			keyword = "continue"
+			return	
 		} else if ast[0].Value() == "return" {
 			if len(context.returns) > 0 && len(ast) < 2 {
-				err = fmt.Errorf("cannot return nil from function with %v",context.returnnames)
+				err = fmt.Errorf("cannot return nil from function with %v",context.returns)
 				return
 			}
 			keyword = "return"		 
@@ -610,37 +637,68 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 			if err != nil {
 				fmt.Println(assignedtolist,":",err)
 			}
-		} else if ast[1].Value() == "=" {
-			var v variable
-			v ,err = usages.valueof(ast[1:])
-			if err != nil {
-				fmt.Println(err)
-				continue
+		} else if itlookslikeassignment(ast) {
+			n := slices.IndexFunc(ast,func(ast lexer.Ast)bool{return ast.Value() == "="})
+			if n >= len(ast)-1 {
+				err = fmt.Errorf("%v does nothing",ast)
 			}
-			if len(ast) == 3 {
-				name := ast[0].Value()
-				var index []variable 
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				place,ok := usages.stuff[name]
-				if ok {
-					err = (*place).setindex(index,v)
-				} else {
-					err = errors.New(name + ":not found ")
-				}
+			varnames := lexer.SplitFunc(ast[:n],func(a lexer.Ast)bool{return a.Value() == ","})
+			var v []variable
+			if len(varnames) == 1 {
+				v = make([]variable,1)
+				v[0],err = usages.valueof(ast[n+1:])	
 			} else {
-				place,ok := usages.stuff[ast[0].Value()]
-				if ok {
-					err = (*place).assign(v)
-				} else {
-					err = errors.New(ast[0].Value() + ":not found ")
-				}
-				
+				v,err = usages.tuple(ast[n+1:])
 			}
 			if err != nil {
-				fmt.Println(err)
+				return
+			}
+			if len(varnames) != len(v) {
+				err = fmt.Errorf("%v does not satisfy %v",v,varnames)
+				return
+			}
+			var collective error
+			for i := range varnames {
+				if len(varnames[i]) == 1 {
+					place,ok := usages.stuff[varnames[i][0].Value()]
+					if ok {
+						err = (*place).assign(v[i])
+					} else {
+						err = errors.New(varnames[i][0].Value() + ":not found ")
+					}
+				
+				} else {
+					
+					name := varnames[i][0].Value()
+					varnames[i] = varnames[i][1:]
+					var index []variable
+					var val variable 
+					for j := range varnames[i] {
+						if varnames[i][j].Value() != "[]" {
+							err = fmt.Errorf("stray %v",varnames[i][j])
+							return
+						}
+						val,err = usages.valueof(varnames[i][j].Inner())
+						if err != nil {
+							return
+						}
+						index = append(index,val)
+					}
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					place,ok := usages.stuff[name]
+					if ok {
+						err = (*place).setindex(index,v[i])
+					} else {
+						err = errors.New(name + ":not found ")
+					}	
+				}
+			}
+		 	if collective != nil {
+				err = collective
+				return
 			}
 		} else if ast[0].Value() == "if" && ast[len(ast)-1].Value() == "then"{
 			if len(ast) == 2 {
