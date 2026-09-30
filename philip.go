@@ -103,8 +103,21 @@ func (i* internalInt)append(v variable)(variable,error){
 func (arr* internalArray) asstring() (string,error){
 	return "",errors.New("cant get value of type string from int")
 }
+func (i* internalInt) asstring() (string,error){
+	return "",errors.New("cant get value of type string from int")
+}
+func (s* internalString) asstring() (string,error){
+	return s.value,nil
+}
+
 func (arr* internalArray) asint()(int,error) {
 	return 0,errors.New("cannot convert " + arr.typeof() + "to type int")
+}
+func (s* internalString) asint()(int,error) {
+	return 0,errors.New("cant get int from string")
+}
+func (i* internalInt) asint()(int,error) {
+	return i.value,nil
 }
 func (arr* internalArray)getindex(index []variable)(variable,error){
 	place ,err := index[0].asint()
@@ -115,68 +128,6 @@ func (arr* internalArray)getindex(index []variable)(variable,error){
 		 return arr.stuff[place].getindex(index[1:])
 	}
 	return arr.stuff[place],nil
-}
-func (arr* internalArray)setindex(index []variable,value variable)( error){
-	place ,err := index[0].asint()
-	if err != nil {
-		return err
-	}
-	if len(index) != 1 {
-		 return arr.stuff[place].setindex(index[1:],value)
-	}
-	return arr.stuff[place].assign(value)
-}
-func (arr* internalArray)typeof() string{
-	return "[]" + arr.stuff[0].typeof()
-}
-func (arr* internalArray)realtype() string{
-	return "[]"
-}
-func (arr* internalArray)retype(typename string) error {
-	return errors.New("cannot retype array")
-}
-func (arr* internalArray)assign(input variable) error {
-	if arr.typeof() == input.typeof() {
-		newarr,_ := input.(*internalArray)
-		arr.stuff = newarr.stuff;
-		return nil
-	} 
-	return fmt.Errorf("cant assign type %v to type %v",arr.typeof(),input.typeof())
-
-}
-func (i* internalInt) asstring() (string,error){
-	return "",errors.New("cant get value of type string from int")
-}
-func (i* internalInt) asint()(int,error) {
-	return i.value,nil
-}
-func (i* internalInt)getindex(index []variable)(variable,error){
-	return nil,errors.New("cannot index type int")
-}
-func (i* internalInt)setindex(index []variable,value variable)( error){
-	return errors.New("cannot index type int")
-}
-func (i* internalInt)typeof() string{
-	return i.typename
-}
-func (i* internalInt)realtype() string{
-	return "int"
-}
-func (i* internalInt)retype(newtype string) error {
-	i.typename = newtype
-	return nil
-}
-func (i* internalInt)assign(input variable) error {
-	var err error
-	i.value,err = input.asint()
-	return err
-
-}
-func (s* internalString) asstring() (string,error){
-	return s.value,nil
-}
-func (s* internalString) asint()(int,error) {
-	return 0,errors.New("cant get int from string")
 }
 func (s* internalString)getindex(index []variable)(variable,error){
 	if len(index) > 1 {
@@ -192,14 +143,66 @@ func (s* internalString)getindex(index []variable)(variable,error){
 		typename:"byte",
 	},nil
 }
+func (i* internalInt)getindex(index []variable)(variable,error){
+	return nil,errors.New("cannot index type int")
+}
+func (arr* internalArray)setindex(index []variable,value variable)( error){
+	place ,err := index[0].asint()
+	if err != nil {
+		return err
+	}
+	if len(index) != 1 {
+		 return arr.stuff[place].setindex(index[1:],value)
+	}
+	return arr.stuff[place].assign(value)
+}
 func (s* internalString)setindex(dimensions []variable, value variable)(error){
 	return errors.New("strings are read only")
+}
+func (i* internalInt)setindex(index []variable,value variable)( error){
+	return errors.New("cannot index type int")
+}
+
+func (arr* internalArray)typeof() string{
+	return "[]" + arr.stuff[0].typeof()
 }
 func (s* internalString)typeof() string{
 	return s.typename
 }
+func (i* internalInt)typeof() string{
+	return i.typename
+}
+
+func (arr* internalArray)realtype() string{
+	return "[]"
+}
 func (s* internalString)realtype() string{
 	return "string"
+}
+func (i* internalInt)realtype() string{
+	return "int"
+}
+
+func (arr* internalArray)retype(typename string) error {
+	return errors.New("cannot retype array")
+}
+func (s* internalString)retype(typename string) error{
+	s.typename = typename
+	return nil
+}
+func (i* internalInt)retype(newtype string) error {
+	i.typename = newtype
+	return nil
+}
+
+func (arr* internalArray)assign(input variable) error {
+	if arr.typeof() == input.typeof() {
+		newarr,_ := input.(*internalArray)
+		arr.stuff = newarr.stuff;
+		return nil
+	} 
+	return fmt.Errorf("cant assign type %v to type %v",arr.typeof(),input.typeof())
+
 }
 func (s* internalString)assign(input variable) error {
 	if input == nil {
@@ -210,10 +213,25 @@ func (s* internalString)assign(input variable) error {
 	return err
 
 }
-func (s* internalString)retype(typename string) error{
-	s.typename = typename
-	return nil
+func (i* internalInt)assign(input variable) error {
+	var err error
+	i.value,err = input.asint()
+	return err
 }
+
+
+func (arr* internalArray)String() string {
+	if arr == nil {
+		return fmt.Sprintf("error:internal nil variable ")
+	}
+	var collector string
+	for i := range arr.stuff {
+		collector+=fmt.Sprintf("%v,",arr.stuff[i])
+	}
+	return collector
+	
+}
+
 func (i* internalInt) String() string {
 	if i == nil {
 		return fmt.Sprintf("error:internal nil variable ")
@@ -225,17 +243,6 @@ func (s* internalString) String() string {
 		return fmt.Sprintf("error:internal nil variable ")
 	}
 	return fmt.Sprintf("%s",s.value)
-}
-func (arr* internalArray)String() string {
-	if arr == nil {
-		return fmt.Sprintf("error:internal nil variable ")
-	}
-	var collector string
-	for i := range arr.stuff {
-		collector+=fmt.Sprintf("%v,",arr.stuff[i])
-	}
-	return collector
-	
 }
 
 func newInternalInt(i int) variable {
@@ -457,7 +464,7 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 			if v == nil {
 				return nil,errors.New("append nil value")
 			}
-			return v[0].append(copyof(v[1]))	
+			return v[0].append(v[1])	
 		}
 
 		if this[0].Type() == "data" && this[1].Value() == "()" {
