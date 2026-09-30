@@ -457,7 +457,7 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 			if v == nil {
 				return nil,errors.New("append nil value")
 			}
-			return v[0].append(v[1])	
+			return v[0].append(copyof(v[1]))	
 		}
 
 		if this[0].Type() == "data" && this[1].Value() == "()" {
@@ -496,7 +496,6 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 		return newInternalInt(i),err
 	} else {
 		returned, ok := context.stuff[this[0].Value()]
-		
 		if !ok {
 			return nil, errors.New("variable name not found \"" + this[0].Value() + "\"")
 		}
