@@ -26,7 +26,7 @@ type variable interface {
 	retype(string) error
 	assign(variable) error
 	len()(variable,error)
-	
+	append(variable)(variable,error)
 }
 
 //interface so big i had to auto generate it
@@ -83,6 +83,23 @@ func (s* internalString)len()(variable,error){
 func(i* internalInt)len()(variable,error) {
 	return nil,errors.New("cant len scalar")
 }
+func(arr* internalArray)append(v variable)(variable,error){
+	if v.typeof() != arr.scalar {
+		return nil,fmt.Errorf("cannot append %v to array of type %v",v.typeof(),arr.scalar)
+	}
+	return newInternalArray(append(arr.stuff,v)),nil
+}
+func (s* internalString)append(v variable)(variable,error){
+	s2,err := v.asstring()
+	if err != nil {
+		return nil,err
+	}
+	return newInternalString(s.value+s2),nil
+}
+func (i* internalInt)append(v variable)(variable,error){
+	return nil,errors.New("cannot append to scalar")
+}
+
 func (arr* internalArray) asstring() (string,error){
 	return "",errors.New("cant get value of type string from int")
 }
@@ -119,15 +136,14 @@ func (arr* internalArray)retype(typename string) error {
 	return errors.New("cannot retype array")
 }
 func (arr* internalArray)assign(input variable) error {
-	return errors.New("cant full assign to array after initialization")
+	if arr.typeof() == input.typeof() {
+		newarr,_ := input.(*internalArray)
+		arr.stuff = newarr.stuff;
+		return nil
+	} 
+	return fmt.Errorf("cant assign type %v to type %v",arr.typeof(),input.typeof())
 
 }
-func (arr* internalArray)append(value variable){
-	if value.typeof() != arr.scalar {
-		arr.stuff = append(arr.stuff,value)	
-	}
-}
-
 func (i* internalInt) asstring() (string,error){
 	return "",errors.New("cant get value of type string from int")
 }
@@ -433,6 +449,16 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 			}
 			return v.len()
 		}
+		if this[0].Value() == "append" && this[1].Value() == "()"{
+			v,err := context.tuple(this[1].Inner())
+			if err != nil {
+				return nil,err
+			}
+			if v == nil {
+				return nil,errors.New("append nil value")
+			}
+			return v[0].append(v[1])	
+		}
 
 		if this[0].Type() == "data" && this[1].Value() == "()" {
 			returned ,err := context.call(this)
@@ -686,7 +712,7 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 					} else {
 						err = errors.New(varnames[i][0].Value() + ":not found ")
 					}
-				
+					collective = errors.Join(collective,err)
 				} else {
 					
 					name := varnames[i][0].Value()
@@ -715,6 +741,8 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 						err = errors.New(name + ":not found ")
 					}	
 				}
+				collective = errors.Join(collective,err)
+
 			}
 		 	if collective != nil {
 				err = collective
