@@ -25,6 +25,7 @@ type variable interface {
 	realtype() string
 	retype(string) error
 	assign(variable) error
+	len()(variable,error)
 	
 }
 
@@ -73,7 +74,15 @@ type internalArray struct {
 	stuff []variable
 	scalar string
 }
-
+func (arr* internalArray)len()(variable,error){
+	return newInternalInt(len(arr.stuff)),nil
+}
+func (s* internalString)len()(variable,error){
+	return newInternalInt(len(s.value)),nil
+}
+func(i* internalInt)len()(variable,error) {
+	return nil,errors.New("cant len scalar")
+}
 func (arr* internalArray) asstring() (string,error){
 	return "",errors.New("cant get value of type string from int")
 }
@@ -414,6 +423,17 @@ func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 		return context.expr(this)
 	}
 	if len(this) > 1 {
+		if this[0].Value() == "len" && this[1].Value() == "()" {
+			v,err := context.valueof(this[1].Inner())
+			if err != nil {
+				return nil,err
+			}
+			if v == nil {
+				return nil,errors.New("len nil value")
+			}
+			return v.len()
+		}
+
 		if this[0].Type() == "data" && this[1].Value() == "()" {
 			returned ,err := context.call(this)
 			if err != nil {
