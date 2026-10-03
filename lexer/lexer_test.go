@@ -1,6 +1,6 @@
 package lexer_test
 import (
-	"philip/lexer"
+	"github.com/message-256/fipl-philip/lexer"
 	"testing"
 	"fmt"
 )
