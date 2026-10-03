@@ -26,6 +26,15 @@ variables are declared starting with "the" they do not have type annotation
 ```
 the a = 1
 ```
+arrays like c and golang but dont have the ability to go across a line
+```
+the array = {1,2,3}
+```
+you can also do (optional) type annotation
+```
+# arrays defualt to len(1)
+the array []int
+```
 arithmatic is evaluated from left to right perens up the queue so 
 ```
 #outputs 1
@@ -33,13 +42,13 @@ print(1+1/2)
 
 ```
 
-arrays like c and golang but dont have the ability to go across a line
-```
-the array = {1,2,3}
-```
 function calls are normal
 ```
 fx(1)
+```
+you would need to find fx
+```
+find "fx"
 ```
 functions must have their stuff at the top of the file(white space is allowed )\
 args must have type annotation(weird i know)\
@@ -55,3 +64,4 @@ filename:fy
 (input int)(int)
 return input
 ```
+
