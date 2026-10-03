@@ -49,7 +49,7 @@ filename:fx
 (input int)
 print(input)
 ```
-returns are just types\
+returns are just types
 filename:fy
 ```
 (input int)(int)
