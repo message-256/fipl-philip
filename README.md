@@ -33,7 +33,7 @@ print(1+1/2)
 
 ```
 
-arrays like c and golang but dont have the ability to go across a line\
+arrays like c and golang but dont have the ability to go across a line
 ```
 the array = {1,2,3}
 ```
