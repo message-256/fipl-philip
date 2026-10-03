@@ -16,7 +16,7 @@ else
 # dothat
 end if
 ```
-for is like ada syntactically and golang in meaning(still need to implement the i = 0; i<something; i++ thing)\
+for is like ada syntactically and golang in meaning(still need to implement the i = 0; i<something; i++ thing)
 ```
 for cond loop
 #  dothis until cond is false
@@ -49,7 +49,7 @@ filename:fx
 (input int)
 print(input)
 ```
-returns are just types
+returns are just types\
 filename:fy
 ```
 (input int)(int)
