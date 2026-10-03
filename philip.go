@@ -231,18 +231,17 @@ func (arr* internalArray)String() string {
 	return collector
 	
 }
-
-func (i* internalInt) String() string {
-	if i == nil {
-		return fmt.Sprintf("error:internal nil variable ")
-	}
-	return fmt.Sprintf("%d",i.value)
-}
 func (s* internalString) String() string {
 	if s == nil {
 		return fmt.Sprintf("error:internal nil variable ")
 	}
 	return fmt.Sprintf("%s",s.value)
+}
+func (i* internalInt) String() string {
+	if i == nil {
+		return fmt.Sprintf("error:internal nil variable ")
+	}
+	return fmt.Sprintf("%d",i.value)
 }
 
 func newInternalInt(i int) variable {
