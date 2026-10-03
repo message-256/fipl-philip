@@ -58,6 +58,8 @@ type function struct {
 }
 type functions map[string]function
 type interpreter struct {
+	packagename string
+	packaged map[string]functions
 	funcs functions
 	stuff variables
 }
@@ -231,17 +233,18 @@ func (arr* internalArray)String() string {
 	return collector
 	
 }
-func (s* internalString) String() string {
-	if s == nil {
-		return fmt.Sprintf("error:internal nil variable ")
-	}
-	return fmt.Sprintf("%s",s.value)
-}
+
 func (i* internalInt) String() string {
 	if i == nil {
 		return fmt.Sprintf("error:internal nil variable ")
 	}
 	return fmt.Sprintf("%d",i.value)
+}
+func (s* internalString) String() string {
+	if s == nil {
+		return fmt.Sprintf("error:internal nil variable ")
+	}
+	return fmt.Sprintf("%s",s.value)
 }
 
 func newInternalInt(i int) variable {
@@ -258,7 +261,7 @@ func newInternalString(s string) variable {
 }
 func newInternalArray(v []variable ) variable{
 	var name string
-	if len(v) > 1 {
+	if len(v) > 0 {
 		name = v[0].typeof()
 	} 
 	return &internalArray{
@@ -285,23 +288,34 @@ func copyof(v variable) variable {
 	}
 	return nil
 }
-func newVariableOfType(typename string)(variable,error) {
+func newVariableOfTypeName(typename string)(variable,error) {
 	switch(typename){
 		case "string":
 			return newInternalString(""),nil
 		case "int":
 			return newInternalInt(0),nil
 	}
-	if typename[:2] == "[]"{
-		v,err := newVariableOfType(typename[:2])
-		returned := []variable{v}
-		if err != nil {
-			return nil,err
-		}
-		return newInternalArray(returned),nil
-	}
 	return nil,errors.New("unknown type " + typename)
-} 
+}
+func newVariableOfType(a []lexer.Ast)(variable,error){
+	if len(a) == 1 {
+		return newVariableOfTypeName(a[0].Value())
+	}
+	if len(a) >= 2 {
+		if a[0].Value() == "[]" {
+			
+			v,err := newVariableOfType(a[1:])
+			fmt.Println(v.typeof())
+			returned := []variable{v}
+			fmt.Println(returned,newInternalArray(returned).typeof())
+			if err != nil {
+				return nil,err
+			}
+			return newInternalArray(returned),nil
+		}
+	}
+	return nil,errors.New("nil type")
+}
 func bint(b bool) int{
 	if b {
 		return 1
@@ -399,7 +413,7 @@ func (context interpreter)call(this []lexer.Ast)([]variable,error) {
 		return nil,errors.New("stray " + keyword)
 	}
 	for i := range f.returns {
-		v,err := newVariableOfType(f.returns[i].typeof())
+		v,err := newVariableOfTypeName(f.returns[i].typeof())
 		if err != nil {
 			return nil,err
 		}
@@ -408,6 +422,7 @@ func (context interpreter)call(this []lexer.Ast)([]variable,error) {
 	}
 	return returned,nil
 }
+
 func (context interpreter)valueof(this []lexer.Ast) (variable, error) {
 	if len(this) == 0 {
 		return nil,nil
@@ -539,6 +554,47 @@ func (context variables)New(this lexer.Ast,initial variable) error {
 	*context[this.Value()] = initial
 	return nil
 }
+func (context interpreter)newfunc(name string)(function,error){
+			var thenew function
+			file,err := os.Open(name)
+			if err != nil {
+				return function{},err
+			}
+			thenew.path = name
+			argchecker := bufio.NewScanner(file)
+			var args []lexer.Ast
+			for argchecker.Scan() && args == nil {
+				args,err = lexer.Lex(argchecker.Text())
+				if err != nil {
+					return function{},err
+				}
+			}
+			if args[0].Type() == "perenthesis" {
+				if len(args) == 2 {
+					inner := lexer.SplitFunc(args[1].Inner(),func(a lexer.Ast)bool{return a.Value() == ","}) 			 	
+					for i := range inner {
+						v,err := newVariableOfType(inner[i])
+						if err != nil {
+							return function{},err
+						}
+						thenew.returns = append(thenew.returns,v)
+					}	
+				}
+				inner := lexer.SplitFunc(args[0].Inner(),func(a lexer.Ast)bool{return a.Value() == ","}) 			 	
+				for i := range inner {
+					thenew.argnames = append(thenew.argnames,inner[i][0].Value())
+					v,err := newVariableOfType(inner[i])
+					if err != nil {
+						return function{},err
+					}
+					thenew.args = append(thenew.args,v)
+				}
+					
+			} else {
+				return function{},errors.New("first declaration must be args")
+			}
+	return thenew,nil
+}
 func itlookslikeassignment(ast []lexer.Ast) bool {
 	return slices.ContainsFunc(ast,func(a lexer.Ast) bool {return a.Value() == "="})
 }
@@ -547,13 +603,7 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 		usages.stuff = make(variables)
 	}
 	if usages.funcs == nil {
-		usages.funcs = make(map[string]function)
-	}
-	if usages.funcs == nil {
-		usages.funcs = make(map[string]function)
-	}
-	if usages.funcs == nil {
-		usages.funcs = make(map[string]function)
+		usages.funcs = make(functions)
 	}
 	for i:= range context.args {
 		usages.stuff[context.argnames[i]] = new(variable)
@@ -598,52 +648,34 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 				}
 			}
 			return 
-		} else if ast[0].Value() == "include" {
-			namestring := ast[1].Value()
-			name := namestring[1:len(namestring)-1]
-			var thenew function
-			file,err2 := os.Open(name)
+		}else if ast[0].Value() == "include" {
+			packagename := ast[1].Value()
+			funcnames ,err2 := os.ReadDir(packagename[1:len(packagename)-1])
 			if err2 != nil {
 				err = err2
 				return
 			}
-			thenew.path = name
-			argchecker := bufio.NewScanner(file)
-			var args []lexer.Ast
-			for argchecker.Scan() && args == nil {
-				args,err = lexer.Lex(argchecker.Text())
-				if err != nil {
-					return
+			usages.packaged[packagename] = make(functions)
+			var collective error
+			for _,e := range funcnames {
+				if e.IsDir() {
+					collective = errors.Join(collective,fmt.Errorf("cant have subdir in package %v",e.Name()))
+					continue
 				}
+				usages.packaged[packagename][e.Name()] ,err = usages.newfunc(e.Name())
+				collective = errors.Join(collective,err)
 			}
-			if args[0].Type() == "perenthesis" {
-				if len(args) == 2 {
-					inner := lexer.SplitFunc(args[1].Inner(),func(a lexer.Ast)bool{return a.Value() == ","}) 			 	
-					var v variable
-					for i := range inner {
-						v,err = newVariableOfType(inner[i][0].Value())
-						if err != nil {
-							return
-						}
-						thenew.returns = append(thenew.returns,v)
-					}	
-				}
-				inner := lexer.SplitFunc(args[0].Inner(),func(a lexer.Ast)bool{return a.Value() == ","}) 			 	
-				var v variable
-				for i := range inner {
-					thenew.argnames = append(thenew.argnames,inner[i][0].Value())
-					v,err = newVariableOfType(inner[i][1].Value())
-					if err != nil {
-						return
-					}
-					thenew.args = append(thenew.args,v)
-				}
-					
-			} else {
-				err = errors.New("first declaration must be args")
+			if collective != nil {
+				err = collective
 				return
 			}
-			usages.funcs[name] = thenew
+		} else if ast[0].Value() == "find" {
+			namestring := ast[1].Value()
+			name := namestring[1:len(namestring)-1]
+			usages.funcs[name] ,err = usages.newfunc(name)
+			if err != nil {
+				return
+			}
 		} else if ast[0].Value() == "print" && ast[1].Value() == "()"{
 			inner := ast[1].Inner()
 			split := lexer.SplitFunc(inner,func(a lexer.Ast)bool{return a.Value() == ","})
@@ -660,33 +692,70 @@ func (context function)eval(scanner *bufio.Scanner,usages interpreter)(keyword s
 				fmt.Printf("%v\n",printed)
 			}
 		} else if ast[0].Value() == "the" {
+			ast = ast[1:]
 			n := slices.IndexFunc(ast,func(ast lexer.Ast)bool{return ast.Value() == "="})
-			assignedtolist := lexer.Split(ast[1:n],lexer.Looker{Value:","})
-			if len(assignedtolist) == 1 {
-				var val variable
-				val ,err = usages.valueof(ast[n+1:])
-				if err != nil {
+			if n == -1 {
+				var collective error
+				var d int
+				for n = range ast {
+					if ast[n].Type() == "data" || ast[n].Value() == "[]" {
+						d++
+					} else if ast[n].Value() == ","{
+						d = 0
+					} else {	
+						collective = errors.Join(collective,fmt.Errorf("invalid token %s",ast[n].Value()))
+					}
+					if d == 2 {
+						break
+					}
+				}
+				if collective != nil {
+					err = collective 
 					return
 				}
-				err = usages.stuff.New(ast[1],val)
-			} else {
-				var vals []variable
-				
-				vals,err = usages.tuple(ast[n+1:])
+				fmt.Println(ast[:n])
+				assignedtolist := lexer.Split(ast[:n],lexer.Looker{Value:","})
+				var all variable 
+				all ,err = newVariableOfType(ast[n:])
 				if err != nil {
-					return 
-				}
-				if len(vals) != len(assignedtolist) {
-					err = fmt.Errorf("%v could not satisfy %v",assignedtolist,ast[n+1])
 					return
 				}
 				for i := range assignedtolist {
-					err = errors.Join(err,usages.stuff.New(assignedtolist[i][0],vals[i]))
+					collective = errors.Join(collective,usages.stuff.New(assignedtolist[i][0],all))
 
+				}
+				if collective != nil {
+					err = collective 
+					return
+				}
+			} else {
+				assignedtolist := lexer.Split(ast[:n],lexer.Looker{Value:","})
+				if len(assignedtolist) == 1 {
+					var val variable
+					val ,err = usages.valueof(ast[n+1:])
+					if err != nil {
+						return
+					}
+					err = usages.stuff.New(ast[1],val)
+				} else {
+					var vals []variable
+					
+					vals,err = usages.tuple(ast[n+1:])
+					if err != nil {
+						return 
+					}
+					if len(vals) != len(assignedtolist) {
+						err = fmt.Errorf("%v could not satisfy %v",assignedtolist,ast[n+1])
+						return
+					}
+					for i := range assignedtolist {
+						err = errors.Join(err,usages.stuff.New(assignedtolist[i][0],vals[i]))
+	
+					}
 				}
 			}
 			if err != nil {
-				fmt.Println(assignedtolist,":",err)
+				fmt.Println(ast[:n],":",err)
 			}
 		} else if itlookslikeassignment(ast) {
 			n := slices.IndexFunc(ast,func(ast lexer.Ast)bool{return ast.Value() == "="})
