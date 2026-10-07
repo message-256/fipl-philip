@@ -1,0 +1,12 @@
+(arg string)
+print(arg)
+the b = 1
+for b < 3 loop
+	print(b)
+	b=b+1
+end loop
+if b > 1 then
+	the a = 1
+end if
+b=a  
+

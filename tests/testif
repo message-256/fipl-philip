@@ -1,0 +1,12 @@
+(arg string)
+print(arg)
+the b = 2
+if b>0 then
+	print("b is bigger than 0")
+	if b == 1 then
+		print("b is 1")
+	else
+		print("b is not 1")
+	end if
+end if
+

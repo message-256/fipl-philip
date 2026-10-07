@@ -1,0 +1,7 @@
+(arg string)
+print(arg)
+the array = {1,2,3}
+print(array)
+array[0] = 2
+print(array)
+

@@ -1,0 +1,3 @@
+(input string)(string)
+print(input)
+return append(input," worked")

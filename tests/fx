@@ -1,0 +1,3 @@
+(input int)(int,int)
+print(input)
+return input+1,input+2
