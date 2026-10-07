@@ -8,5 +8,6 @@ end loop
 if b > 1 then
 	the a = 1
 end if
+#expect error
 b=a  
 
