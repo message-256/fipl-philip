@@ -1,0 +1,8 @@
+include "tests"
+print(tests.testret("passed return"))
+print(tests.fx(1))
+the a,b = tests.fx(1)
+print("the a,b =",a,b)
+tests.testif("passed 1")
+tests.arraytest("passed 2")
+tests.looptest("passed 3")
