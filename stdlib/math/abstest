@@ -1,0 +1,6 @@
+(i int)
+find "abs"
+find "negate"
+if abs(i) != abs(negate(i)) then
+	print(a,b)
+end if

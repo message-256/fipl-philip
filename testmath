@@ -1,0 +1,7 @@
+include "stdlib/math"
+math.abstest(1)
+the i = 0
+for i<10 loop
+	i = i+1
+	math.negatetest(i)
+end loop

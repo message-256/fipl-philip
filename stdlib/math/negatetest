@@ -1,0 +1,3 @@
+(i int)
+find "negate"
+print(negate(i))

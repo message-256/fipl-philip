@@ -1,0 +1,6 @@
+(input int)(int)
+find "negate"
+if input < 0 then
+	return negate(input)
+end if 
+return input
