@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -47,6 +48,7 @@ type arithmaticable interface {
 type variables map[string]*variable
 
 type function struct {
+	dir string
 	path     string
 	args     []variable
 	returns  []variable
@@ -406,6 +408,7 @@ func (context interpreter) expr(input []lexer.Ast) (variable, error) {
 		"<=": func(a, b int) int { return bint(a <= b) },
 		">=": func(a, b int) int { return bint(a >= b) },
 		"==": func(a, b int) int { return bint(a == b) },
+		"!=": func(a,b int) int {return bint(a != b)},
 		"<":  func(a, b int) int { return bint(a < b) },
 		">":  func(a, b int) int { return bint(a > b) },
 	}
@@ -435,7 +438,7 @@ func (context interpreter) expr(input []lexer.Ast) (variable, error) {
 		}
 		_, ok := opperations[oppername]
 		if !ok {
-			return nil, errors.New("uncased operation")
+			return nil, fmt.Errorf("uncased operation %v",oppername)
 		}
 		a = opperations[oppername](a, b)
 		next = slices.IndexFunc(input, func(a lexer.Ast) bool { return a.Type() == "arithmatic" })
@@ -465,7 +468,7 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 		selection := this[0].Value()
 		p, ok := context.packaged[selection]
 		if !ok {
-			return nil, fmt.Errorf("package %v does not exist", selection)
+			return nil, fmt.Errorf("package '%v' does not exist", selection)
 		}
 		f, ok = p[name]
 		if !ok {
@@ -493,10 +496,30 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 	}
 	returned := make([]variable, len(f.returns))
 	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	keyword, err := f.eval(scanner, interpreter{})
+	for scanner.Scan() {
+		ast ,err := lexer.Lex(scanner.Text())
+		if err != nil {
+			return nil,err
+		}
+		if ast != nil {
+			break
+		}
+	}
+	normal,err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil,err
+	}
+	err = os.Chdir(f.dir)
+	if err != nil {
+		return nil,err
+	}
+	keyword,line, err := f.eval(scanner, interpreter{})
+	if err != nil {
+		return nil, fmt.Errorf("%v:%v:error %v",f.path,line,err)
+	}
+	err = os.Chdir(normal)
+	if err != nil {
+		return nil,err
 	}
 	if keyword != "return" && keyword != "" {
 		return nil, errors.New("stray " + keyword)
@@ -516,8 +539,11 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	if len(this) == 0 {
 		return nil, nil
 	}
+	if len(this) == 1 && this[0].Value() == "()" {
+		return context.valueof(this[0].Inner())
+	}
 	name := this[0].Value()
-	if name[0] == '"' && name[len(name)-1] == '"' {
+	if itlookslikeastring(this[0]) {
 		return newInternalString(name[1 : len(name)-1]), nil
 	}
 
@@ -548,6 +574,16 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	if slices.ContainsFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" }) || this[0].Value() == "()" {
 		return context.expr(this)
 	}
+	if itlookslikeafunctioncall(this) {
+			returned, err := context.call(this)
+			if err != nil {
+				return nil, err
+			}
+			if len(returned) != 1 {
+				return nil, fmt.Errorf("expected 1 have %d", len(returned))
+			}
+			return returned[0], nil
+		}
 	if len(this) > 1 {
 		if this[0].Value() == "len" && this[1].Value() == "()" {
 			v, err := context.valueof(this[1].Inner())
@@ -570,18 +606,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 			return v[0].append(v[1])
 		}
 
-		if itlookslikeafunctioncall(this) {
-			returned, err := context.call(this)
-			if err != nil {
-				return nil, err
-			}
-			if len(returned) != 1 {
-				return nil, fmt.Errorf("expected 1 have %d", len(returned))
-			}
-			return returned[0], nil
-		}
-		name := this[0]
-		this = this[1:]
+		
 		if this[0].Value() == "[]" {
 			var dimensions []variable
 			for i := range this {
@@ -594,7 +619,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 				}
 				dimensions = append(dimensions, v)
 			}
-			indexed, err := context.valueof([]lexer.Ast{name})
+			indexed, err := context.valueof([]lexer.Ast{this[0]})
 			if err != nil {
 				return nil, err
 			}
@@ -636,6 +661,9 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 
 	return returned, nil
 }
+func(context interpreter) refer() interpreter {
+	return interpreter{stuff: maps.Clone(context.stuff), funcs: maps.Clone(context.funcs),packaged:maps.Clone(context.packaged)}
+}
 func (context variables) New(this lexer.Ast, initial variable) error {
 	if unicode.IsDigit(rune(this.Value()[0])) || this.Type() != "data" {
 		return errors.New(fmt.Sprint(this, ":cant start variable name with number."))
@@ -645,12 +673,13 @@ func (context variables) New(this lexer.Ast, initial variable) error {
 	*context[this.Value()] = initial
 	return nil
 }
-func (context interpreter) newfunc(name string) (function, error) {
+func (context interpreter) newfunc(dir,name string) (function, error) {
 	var thenew function
 	file, err := os.Open(name)
 	if err != nil {
 		return function{}, err
 	}
+	thenew.dir = dir
 	thenew.path = name
 	argchecker := bufio.NewScanner(file)
 	var args []lexer.Ast
@@ -660,7 +689,7 @@ func (context interpreter) newfunc(name string) (function, error) {
 			return function{}, err
 		}
 	}
-	if args[0].Type() == "perenthesis" {
+	if args[0].Value() == "()" {
 		if len(args) == 2 {
 			inner := lexer.SplitFunc(args[1].Inner(), func(a lexer.Ast) bool { return a.Value() == "," })
 			for i := range inner {
@@ -690,7 +719,7 @@ func itlookslikeassignment(ast []lexer.Ast) bool {
 	return slices.ContainsFunc(ast, func(a lexer.Ast) bool { return a.Value() == "=" })
 }
 func itlookslikeafunctioncall(ast []lexer.Ast) bool {
-	if len(ast) > 2 {
+	if len(ast) >= 2 {
 		return ast[len(ast)-2].Type() == "data" && ast[len(ast)-1].Value() == "()"
 	}
 	return false
@@ -701,7 +730,14 @@ func itlookslikeanattribute(ast []lexer.Ast) bool {
 	}
 	return ast[0].Type() == "data" && ast[1].Value() == "." && ast[2].Type() == "data"
 }
-func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keyword string, err error) {
+func itlookslikeastring(this lexer.Ast) bool {
+	s := this.Value()
+	if len(s) < 2 {
+		return false
+	}
+	return s[0] == '"' && s[len(s)-1] == '"'
+}
+func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keyword string,line int, err error) {
 	if usages.stuff == nil {
 		usages.stuff = make(variables)
 	}
@@ -717,8 +753,9 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 	}
 	var ast []lexer.Ast
 	for scanner.Scan() {
-		line := scanner.Text()
-		ast, err = lexer.Lex(line)
+		filesline := scanner.Text()
+		line++
+		ast, err = lexer.Lex(filesline)
 		if err != nil {
 			return
 		}
@@ -751,13 +788,20 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			}
 			return
 		} else if ast[0].Value() == "include" {
-			packagename := ast[1].Value()
-			packagename = packagename[1 : len(packagename)-1]
-			funcnames, err2 := os.ReadDir(packagename)
+			packagepath := ast[1].Value()
+			if !itlookslikeastring(ast[1]) {
+				err = fmt.Errorf("%v does not look like a string",packagepath)
+				return
+			}
+			packagepath = packagepath[1 : len(packagepath)-1]
+			packagesplit := strings.Split(packagepath,"/")
+			packagename := packagesplit[len(packagesplit)-1]
+			funcnames, err2 := os.ReadDir(packagepath)
 			if err2 != nil {
 				err = err2
 				return
 			}
+			packagename = strings.ReplaceAll(packagename," ","")
 			usages.packaged[packagename] = make(functions)
 			var collective error
 			for _, e := range funcnames {
@@ -765,7 +809,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 					collective = errors.Join(collective, fmt.Errorf("cant have subdir in package %v", e.Name()))
 					continue
 				}
-				usages.packaged[packagename][e.Name()], err = usages.newfunc(packagename + "/" + e.Name())
+				usages.packaged[packagename][e.Name()], err = usages.newfunc(packagepath,packagepath + "/" + e.Name())
 				collective = errors.Join(collective, err)
 			}
 			if collective != nil {
@@ -774,8 +818,14 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			}
 		} else if ast[0].Value() == "find" {
 			namestring := ast[1].Value()
+			if !itlookslikeastring(ast[1]) {
+				err = fmt.Errorf("%v does not look like a string",namestring)
+				return
+			}
 			name := namestring[1 : len(namestring)-1]
-			usages.funcs[name], err = usages.newfunc(name)
+			var current string
+			current ,err = os.Getwd()
+			usages.funcs[name], err = usages.newfunc(current,name)
 			if err != nil {
 				return
 			}
@@ -938,8 +988,8 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			var collective error
 			var sp int = 1
 			for scanner.Scan() {
-				line = scanner.Text()
-				ast, err := lexer.Lex(line)
+				filesline = scanner.Text()
+				ast, err := lexer.Lex(filesline)
 				if ast != nil {
 					if ast[0].Value() == "end" && ast[len(ast)-1].Value() == "if" {
 						sp--
@@ -954,7 +1004,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				if sp == 0 {
 					break
 				}
-				*lambda += line + "\n"
+				*lambda += filesline + "\n"
 
 			}
 			if collective != nil {
@@ -962,20 +1012,20 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				return
 			}
 			if condition >= 1 {
-				keyword, err = context.eval(bufio.NewScanner(strings.NewReader(ifLambda)), interpreter{stuff: maps.Clone(usages.stuff), funcs: maps.Clone(usages.funcs)})
+				keyword,line, err = context.eval(bufio.NewScanner(strings.NewReader(ifLambda)), usages.refer())
 				if keyword == "return" {
 					return
 				}
 				if err != nil {
-					fmt.Println(err)
+					return
 				}
 			} else {
-				keyword, err = context.eval(bufio.NewScanner(strings.NewReader(elseLambda)), interpreter{stuff: maps.Clone(usages.stuff), funcs: maps.Clone(usages.funcs)})
+				keyword,line, err = context.eval(bufio.NewScanner(strings.NewReader(elseLambda)), usages.refer())
 				if keyword == "return" {
 					return
 				}
 				if err != nil {
-					fmt.Println(err)
+					return
 				}
 			}
 		} else if ast[0].Value() == "for" && ast[len(ast)-1].Value() == "loop" {
@@ -983,13 +1033,14 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			var lambda string
 			var sp int = 1
 			var collective error
+			var lambdast []lexer.Ast
 			for scanner.Scan() {
-				line = scanner.Text()
-				ast, err := lexer.Lex(line)
-				if ast != nil && len(ast) >= 2 {
-					if ast[0].Value() == "end" && ast[len(ast)-1].Value() == "loop" {
+				filesline = scanner.Text()
+				lambdast, err = lexer.Lex(filesline)
+				if lambdast != nil && len(lambdast) >= 2 {
+					if lambdast[0].Value() == "end" && lambdast[len(lambdast)-1].Value() == "loop" {
 						sp--
-					} else if ast[0].Value() == "for" && ast[len(ast)-1].Value() == "loop" {
+					} else if lambdast[0].Value() == "for" && lambdast[len(lambdast)-1].Value() == "loop" {
 						sp++
 					}
 				}
@@ -997,28 +1048,29 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				if sp == 0 {
 					break
 				}
-				lambda += line + "\n"
+				lambda += filesline + "\n"
 
 			}
-			if !(ast[0].Value() == "end" && ast[len(ast)].Value() == "loop") {
-				fmt.Println("loop but no end")
+			if !(lambdast[0].Value() == "end" && lambdast[len(lambdast)-1].Value() == "loop") {
+				err = fmt.Errorf("loop with no end")
+				return
+				
 			}
 			var returnedkeyword string
 			var condition int
 			var f function
+			var v variable
 			for {
-				v, err := usages.expr(expression)
+				v, err = usages.expr(expression)
 				if err != nil {
-					fmt.Println(err)
-					break
+					return
 				}
 
 				condition, err = v.asint()
 				if err != nil {
-					fmt.Println(err)
-					break
+					return
 				}
-				returnedkeyword, err = f.eval(bufio.NewScanner(strings.NewReader(lambda)), interpreter{stuff: maps.Clone(usages.stuff), funcs: maps.Clone(usages.funcs)})
+				returnedkeyword,line, err = f.eval(bufio.NewScanner(strings.NewReader(lambda)), usages.refer())
 				switch returnedkeyword {
 				case "break":
 					break
@@ -1026,8 +1078,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 
 				}
 				if err != nil {
-					fmt.Println(err)
-					break
+					return
 				}
 				if condition <= 0 {
 					break
@@ -1037,13 +1088,14 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			var returned []variable
 			returned, err = usages.call(ast)
 			if err != nil {
-				return "", err
+				return 
 			}
 			if len(returned) != 0 {
-				return "", errors.New("non procedure call to procedure")
+				err = fmt.Errorf("%v return variables ignored",filesline)
+				return 
 			}
 		} else {
-			fmt.Println("error", line, "looks like gibberish")
+			fmt.Println("error", filesline, "looks like gibberish")
 		}
 	}
 	return
@@ -1062,9 +1114,10 @@ func main() {
 	}
 	var f function
 	var keyword string
-	keyword, err = f.eval(bufio.NewScanner(file), interpreter{})
+	var line int
+	keyword,line, err = f.eval(bufio.NewScanner(file), interpreter{})
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("main:%v:%v\n",line,err)
 	}
 	if keyword != "return" && keyword != "" {
 		fmt.Println("error stray", keyword)

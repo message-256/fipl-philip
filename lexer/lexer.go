@@ -37,7 +37,7 @@ func delimrecursive (s string ,delimitera,delimiterb rune) (int,error){
 		}
 	}
 	if sp > 0 {
-		return 0,errors.New("stray " + string(delimitera))
+		return 0,fmt.Errorf("stray %c in %v",delimitera,s)
 	}
 	return next,nil
 	
