@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -17,8 +16,6 @@ import (
 // i use as<type>()s becuase it simplifys aritmatic
 // most of the reason why i use this is becuase generics are dumb for things other that [single any, array []single]
 type variable interface {
-	asstring() (string, error)
-	asint() (int, error)
 	getindex([]variable) (variable, error)
 	setindex([]variable, variable) error
 	typeof() string
@@ -29,26 +26,10 @@ type variable interface {
 	append(variable) (variable, error)
 }
 
-// interface so big i had to auto generate it
-type arithmaticable interface {
-	add(variable) variable
-	sub(variable) variable
-	mul(variable) variable
-	div(variable) variable
-	not(variable) variable
-	and(variable) variable
-	or(variable) variable
-	shr(variable) variable
-	shl(variable) variable
-	mod(variable) variable
-	lt(variable) variable
-	gt(variable) variable
-	eqw(variable) variable
-}
 type variables map[string]*variable
 
 type function struct {
-	dir string
+	dir      string
 	path     string
 	args     []variable
 	returns  []variable
@@ -61,8 +42,9 @@ type interpreter struct {
 	funcs       functions
 	stuff       variables
 }
-//field is essentially map
-//hope this doesnt cuase issues later
+
+// field is essentially map
+// hope this doesnt cuase issues later
 type internalStruct struct {
 	fields   map[string]variable
 	typename string
@@ -80,6 +62,10 @@ type internalArray struct {
 	stuff      []variable
 	scalar     string
 }
+type internalFloat struct {
+	value    float32
+	typename string
+}
 
 func (st *internalStruct) len() (variable, error) {
 	return nil, fmt.Errorf("cant len %v its a struct", st.typename)
@@ -90,9 +76,13 @@ func (arr *internalArray) len() (variable, error) {
 func (s *internalString) len() (variable, error) {
 	return newInternalInt(len(s.value)), nil
 }
+func (f *internalFloat)len()(variable,error) {
+	return nil,fmt.Errorf("cant len float")
+}
 func (i *internalInt) len() (variable, error) {
 	return nil, errors.New("cant len scalar")
 }
+
 
 func (st *internalStruct) append(v variable) (variable, error) {
 	return nil, fmt.Errorf("cant append %v its a struct", st.typename)
@@ -105,44 +95,23 @@ func (arr *internalArray) append(v variable) (variable, error) {
 	return newInternalArray(append(arr.stuff, v)), nil
 }
 func (s *internalString) append(v variable) (variable, error) {
-	s2, err := v.asstring()
+	s2, err := asstring(v)
 	if err != nil {
 		return nil, err
 	}
 	return newInternalString(s.value + s2), nil
 }
+func(f *internalFloat)append(v variable)(variable,error) {
+	return nil,fmt.Errorf("cant append to float")
+}
 func (i *internalInt) append(v variable) (variable, error) {
 	return nil, errors.New("cannot append to scalar")
 }
 
-func (st *internalStruct) asstring() (string, error) {
-	return "", fmt.Errorf("cant convert type %v to string", st.typename)
-}
-func (arr *internalArray) asstring() (string, error) {
-	return "", errors.New("cant get value of type string from int")
-}
-func (i *internalInt) asstring() (string, error) {
-	return "", errors.New("cant get value of type string from int")
-}
-func (s *internalString) asstring() (string, error) {
-	return s.value, nil
-}
-
-func (arr *internalArray) asint() (int, error) {
-	return 0, errors.New("cannot convert " + arr.typeof() + "to type int")
-}
-func (s *internalString) asint() (int, error) {
-	return 0, errors.New("cant get int from string")
-}
-func (i *internalInt) asint() (int, error) {
-	return i.value, nil
-}
 
 func (st *internalStruct) getindex(index []variable) (variable, error) {
-	if len(index) > 1 {
-		return nil, fmt.Errorf("%v len > 1 might be a bug", index)
-	}
-	field, err := index[0].asstring()
+
+	field, err := asstring(index[0])
 	if err != nil {
 		return nil, fmt.Errorf("index[0].asstring returned error %v in call to getfield() = getindex() might be a bug")
 	}
@@ -150,10 +119,13 @@ func (st *internalStruct) getindex(index []variable) (variable, error) {
 	if !ok {
 		return nil, fmt.Errorf("struct %v does not have field %v", st.typename, field)
 	}
+	if len(index) > 1 {
+		return st.fields[field].getindex(index[1:])
+	}
 	return copyof(st.fields[field]), nil
 }
 func (arr *internalArray) getindex(index []variable) (variable, error) {
-	place, err := index[0].asint()
+	place, err := asint(index[0])
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +138,7 @@ func (s *internalString) getindex(index []variable) (variable, error) {
 	if len(index) > 1 {
 		return nil, errors.New(fmt.Sprintf("cannot index %d dimension of type string only has 1 dimension", len(index)))
 	}
-	place, err := index[0].asint()
+	place, err := asint(index[0])
 	if err != nil {
 		return nil, errors.New("cannot index with type " + index[0].typeof())
 	}
@@ -176,6 +148,9 @@ func (s *internalString) getindex(index []variable) (variable, error) {
 		typename: "byte",
 	}, nil
 }
+func (f *internalFloat)getindex(index []variable) (variable,error) {
+	return nil,fmt.Errorf("cant index type float")
+}
 func (i *internalInt) getindex(index []variable) (variable, error) {
 	return nil, errors.New("cannot index type int")
 }
@@ -184,7 +159,7 @@ func (st *internalStruct) setindex(index []variable, value variable) error {
 	if len(index) > 1 {
 		return fmt.Errorf("%v len > 1 might be a bug", index)
 	}
-	field, err := index[0].asstring()
+	field, err := asstring(index[0])
 	if err != nil {
 		return fmt.Errorf("index[0].asstring returned error %v in call to getfield() = getindex() might be a bug")
 	}
@@ -196,7 +171,7 @@ func (st *internalStruct) setindex(index []variable, value variable) error {
 	return st.fields[field].assign(value)
 }
 func (arr *internalArray) setindex(index []variable, value variable) error {
-	place, err := index[0].asint()
+	place, err := asint(index[0])
 	if err != nil {
 		return err
 	}
@@ -207,6 +182,9 @@ func (arr *internalArray) setindex(index []variable, value variable) error {
 }
 func (s *internalString) setindex(dimensions []variable, value variable) error {
 	return errors.New("strings are read only")
+}
+func (f* internalFloat)setindex(index []variable,value variable) error {
+	return fmt.Errorf("cant index type float")
 }
 func (i *internalInt) setindex(index []variable, value variable) error {
 	return errors.New("cannot index type int")
@@ -220,6 +198,9 @@ func (arr *internalArray) typeof() string {
 }
 func (s *internalString) typeof() string {
 	return s.typename
+}
+func (f *internalFloat)typeof() string {
+	return f.typename
 }
 func (i *internalInt) typeof() string {
 	return i.typename
@@ -238,6 +219,9 @@ func (arr *internalArray) realtype() string {
 func (s *internalString) realtype() string {
 	return "string"
 }
+func (f *internalFloat)realtype() string {
+	return "float"
+}
 func (i *internalInt) realtype() string {
 	return "int"
 }
@@ -250,6 +234,10 @@ func (arr *internalArray) retype(typename string) error {
 }
 func (s *internalString) retype(typename string) error {
 	s.typename = typename
+	return nil
+}
+func (f *internalFloat)retype(newtype string) error {
+	f.typename = newtype
 	return nil
 }
 func (i *internalInt) retype(newtype string) error {
@@ -287,13 +275,21 @@ func (s *internalString) assign(input variable) error {
 		return errors.New("internal: nil pointer passed to assign")
 	}
 	var err error
-	s.value, err = input.asstring()
+	s.value, err = asstring(input)
 	return err
 
 }
+func(f *internalFloat)assign(input variable) error {
+	f2,ok := input.(*internalFloat)
+	if !ok {
+		return fmt.Errorf("cant assign typr %v to float",input.typeof())
+	}
+	f.value = f2.value
+	return nil
+}
 func (i *internalInt) assign(input variable) error {
 	var err error
-	i.value, err = input.asint()
+	i.value, err = asint(input)
 	return err
 }
 
@@ -308,7 +304,12 @@ func (arr *internalArray) String() string {
 	return collector
 
 }
-
+func(f *internalFloat)String() string {
+	if f == nil {
+		return fmt.Sprintf("error:internal nil variable ")
+	}
+	return fmt.Sprintf("%v",f.value)
+}
 func (i *internalInt) String() string {
 	if i == nil {
 		return fmt.Sprintf("error:internal nil variable ")
@@ -326,6 +327,12 @@ func newInternalInt(i int) variable {
 	return &internalInt{
 		value:    i,
 		typename: "int",
+	}
+}
+func newInternalFloat(f float32) variable {
+	return &internalFloat{
+		value:f,
+		typename: "float",
 	}
 }
 func newInternalString(s string) variable {
@@ -348,10 +355,10 @@ func newInternalArray(v []variable) variable {
 func copyof(v variable) variable {
 	switch v.realtype() {
 	case "string":
-		s, _ := v.asstring()
+		s, _ := asstring(v)
 		return newInternalString(s)
 	case "int":
-		i, _ := v.asint()
+		i, _ := asint(v)
 		return newInternalInt(i)
 	case "[]":
 		var a1 []variable
@@ -395,61 +402,181 @@ func bint(b bool) int {
 	}
 	return 0
 }
-func (context interpreter) expr(input []lexer.Ast) (variable, error) {
-	if input[0].Type() != "data" && input[0].Type() != "perenthesis" {
-		return nil, errors.New("must not start with " + input[0].Value())
+func bfloat(b bool) float32 {
+	if b {
+		return 1
 	}
-	var opperations = map[string]func(int, int) int{
-		"/":  func(a, b int) int { return a / b },
-		"*":  func(a, b int) int { return a * b },
-		"%":  func(a, b int) int { return a % b },
-		"+":  func(a, b int) int { return a + b },
-		"-":  func(a, b int) int { return a - b },
-		"<=": func(a, b int) int { return bint(a <= b) },
-		">=": func(a, b int) int { return bint(a >= b) },
-		"==": func(a, b int) int { return bint(a == b) },
-		"!=": func(a,b int) int {return bint(a != b)},
-		"<":  func(a, b int) int { return bint(a < b) },
-		">":  func(a, b int) int { return bint(a > b) },
+	return 0	
+}
+func asint(v variable) (int, error) {
+	i, ok := v.(*internalInt)
+	if !ok {
+		return 0, fmt.Errorf("cant convert %v to type int", v.typeof())
 	}
+	return i.value, nil
+}
+func asstring(v variable) (string, error) {
+	s, ok := v.(*internalString)
+	if !ok {
+		return "", fmt.Errorf("cant convert %v to type string", v.typeof())
+	}
+	return s.value, nil
+}
+func asfloat(v variable)(float32,error) {
+	f,ok := v.(*internalFloat)
+	if !ok {
+		return 0, fmt.Errorf("cant convert %v to type float", v.typeof())
+	}
+	return f.value,nil
+}
+func (context interpreter) fexpr(this []lexer.Ast) (variable, error) {
+	if this[0].Type() != "data" && this[0].Type() != "perenthesis" {
+		return nil, errors.New("must not start with " + this[0].Value())
+	}
+	var a float32
+	var oppername string
+	var next int
+	next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "." })
+	v, err := context.valueof(this[:next])
+	oppername = this[next].Value()
+	if err != nil {
+		return nil, err
+	}
+	expressionT := v.typeof()
+	a, err = asfloat(v)
+	if err != nil {
+		return nil, err
+	}
+	this = this[next+1:]
+	for len(this) != 0 {
+		v, err := context.valueof(this[:next])
+		if err != nil {
+			return nil, err
+		}
+		if v.typeof() != expressionT {
+			return nil,fmt.Errorf("cant convert type %v to %v",v.typeof(),expressionT)
+		}
+		b, err := asfloat(v)
+		if err != nil {
+			return nil, err
+		}
+		switch oppername {
+		case "/":
+			a = a / b
+		case "*":
+			a = a * b
+		case "+":
+			a = a + b
+		case "-":
+			a = a - b
+		case "<=":
+			a = bfloat(a <= b)
+		case ">=":
+			a = bfloat(a >= b)
+		case "==":
+			a = bfloat(a == b)
+		case "!=":
+			a = bfloat(a != b)
+		case "<":
+			a = bfloat(a < b)
+		case ">":
+			a = bfloat(a > b)
+		default:
+			return nil, fmt.Errorf("uncased operation %v", oppername)
+		}
+		next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "."})
+		if next == -1 {
+			next = len(this) - 1
+		}
+		oppername = this[next].Value()
+		this = this[next+1:]
 
+	}
+	return newInternalFloat(a), nil
+}
+
+func (context interpreter) iexpr(this []lexer.Ast) (variable, error) {
+	if this[0].Type() != "data" && this[0].Type() != "perenthesis" {
+		return nil, errors.New("must not start with " + this[0].Value())
+	}
 	var a int
 	var oppername string
 	var next int
-	next = slices.IndexFunc(input, func(a lexer.Ast) bool { return a.Type() == "arithmatic" })
-	v, err := context.valueof(input[:next])
-	oppername = input[next].Value()
+	next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" })
+	v, err := context.valueof(this[:next])
+	oppername = this[next].Value()
 	if err != nil {
 		return nil, err
 	}
-	a, err = v.asint()
+	expressionT := v.typeof()
+	a, err = asint(v)
 	if err != nil {
 		return nil, err
 	}
-	input = input[next+1:]
-	for len(input) != 0 {
-		v, err := context.valueof(input[:next])
+	this = this[next+1:]
+	for len(this) != 0 {
+		v, err := context.valueof(this[:next])
 		if err != nil {
 			return nil, err
 		}
-		b, err := v.asint()
+		if v.typeof() != expressionT {
+			return nil,fmt.Errorf("cant convert type %v to %v",v.typeof(),expressionT)
+		}
+		b, err := asint(v)
 		if err != nil {
 			return nil, err
 		}
-		_, ok := opperations[oppername]
-		if !ok {
-			return nil, fmt.Errorf("uncased operation %v",oppername)
+		switch oppername {
+		case "/":
+			a = a / b
+		case "*":
+			a = a * b
+		case "%":
+			a = a % b
+		case "+":
+			a = a + b
+		case "-":
+			a = a - b
+		case "<=":
+			a = bint(a <= b)
+		case ">=":
+			a = bint(a >= b)
+		case "==":
+			a = bint(a == b)
+		case "!=":
+			a = bint(a != b)
+		case "<":
+			a = bint(a < b)
+		case ">":
+			a = bint(a > b)
+		default:
+			return nil, fmt.Errorf("uncased operation %v", oppername)
 		}
-		a = opperations[oppername](a, b)
-		next = slices.IndexFunc(input, func(a lexer.Ast) bool { return a.Type() == "arithmatic" })
+		next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" })
 		if next == -1 {
-			next = len(input) - 1
+			next = len(this) - 1
 		}
-		oppername = input[next].Value()
-		input = input[next+1:]
+		oppername = this[next].Value()
+		this = this[next+1:]
 
 	}
 	return newInternalInt(a), nil
+}
+func (context interpreter)expr(this []lexer.Ast)(variable,error){
+	i := slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "." })
+	if i == -1 {
+		return nil,fmt.Errorf("something weird found its way to expr")
+	}
+	v,err := context.valueof(this[:i])
+	if err != nil {
+		return nil,err
+	}
+	if v.realtype() == "float" {
+		return context.fexpr(this)
+	} else if v.realtype() == "int" {
+		return context.iexpr(this)
+	} 
+	return nil,fmt.Errorf("cant do arithmatic with type %v",v.typeof())
 }
 func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 	var perens []lexer.Ast
@@ -490,6 +617,16 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 			return nil, err
 		}
 	}
+	normal, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	if normal != f.dir {
+		err = os.Chdir(f.dir)
+		if err != nil {
+			return nil, err
+		}
+	}
 	file, err := os.Open(f.path)
 	if err != nil {
 		return nil, err
@@ -497,29 +634,22 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 	returned := make([]variable, len(f.returns))
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		ast ,err := lexer.Lex(scanner.Text())
+		ast, err := lexer.Lex(scanner.Text())
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
 		if ast != nil {
 			break
 		}
 	}
-	normal,err := os.Getwd()
+
+	keyword, line, err := f.eval(scanner, interpreter{})
 	if err != nil {
-		return nil,err
-	}
-	err = os.Chdir(f.dir)
-	if err != nil {
-		return nil,err
-	}
-	keyword,line, err := f.eval(scanner, interpreter{})
-	if err != nil {
-		return nil, fmt.Errorf("%v:%v:error %v",f.path,line,err)
+		return nil, fmt.Errorf("%v:%v:error %v", f.path, line, err)
 	}
 	err = os.Chdir(normal)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	if keyword != "return" && keyword != "" {
 		return nil, errors.New("stray " + keyword)
@@ -546,7 +676,6 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	if itlookslikeastring(this[0]) {
 		return newInternalString(name[1 : len(name)-1]), nil
 	}
-
 	if this[0].Value() == "{}" {
 		inner := this[0].Inner()
 		split := lexer.SplitFunc(inner, func(a lexer.Ast) bool { return a.Value() == "," })
@@ -571,19 +700,30 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 		return newInternalArray(newarray), nil
 
 	}
-	if slices.ContainsFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" }) || this[0].Value() == "()" {
+	if slices.ContainsFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "."}) || this[0].Value() == "()" {
 		return context.expr(this)
 	}
-	if itlookslikeafunctioncall(this) {
-			returned, err := context.call(this)
+	if itlookslikeanattribute(this) {
+		if unicode.IsDigit(rune(this[0].Value()[0])) && unicode.IsDigit(rune(this[2].Value()[0])) {
+			f,err := strconv.ParseFloat(this[0].Value() + this[1].Value() + this[2].Value(),32)
 			if err != nil {
-				return nil, err
+				return nil,err
 			}
-			if len(returned) != 1 {
-				return nil, fmt.Errorf("expected 1 have %d", len(returned))
-			}
-			return returned[0], nil
+			return newInternalFloat(float32(f)),nil
 		}
+	}
+	
+	if itlookslikeafunctioncall(this) {
+		returned, err := context.call(this)
+		if err != nil {
+			return nil, err
+		}
+		if len(returned) != 1 {
+			return nil, fmt.Errorf("expected 1 have %d", len(returned))
+		}
+		return returned[0], nil
+	}
+	
 	if len(this) > 1 {
 		if this[0].Value() == "len" && this[1].Value() == "()" {
 			v, err := context.valueof(this[1].Inner())
@@ -606,7 +746,6 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 			return v[0].append(v[1])
 		}
 
-		
 		if this[0].Value() == "[]" {
 			var dimensions []variable
 			for i := range this {
@@ -661,8 +800,8 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 
 	return returned, nil
 }
-func(context interpreter) refer() interpreter {
-	return interpreter{stuff: maps.Clone(context.stuff), funcs: maps.Clone(context.funcs),packaged:maps.Clone(context.packaged)}
+func (context interpreter) refer() interpreter {
+	return interpreter{stuff: maps.Clone(context.stuff), funcs: maps.Clone(context.funcs), packaged: maps.Clone(context.packaged)}
 }
 func (context variables) New(this lexer.Ast, initial variable) error {
 	if unicode.IsDigit(rune(this.Value()[0])) || this.Type() != "data" {
@@ -673,13 +812,29 @@ func (context variables) New(this lexer.Ast, initial variable) error {
 	*context[this.Value()] = initial
 	return nil
 }
-func (context interpreter) newfunc(dir,name string) (function, error) {
-	var thenew function
-	file, err := os.Open(name)
+func (context interpreter) newfunc(dir, name string) (function, error) {
+	normal, err := os.Getwd()
 	if err != nil {
 		return function{}, err
 	}
-	thenew.dir = dir
+	err = os.Chdir(dir)
+	if err != nil {
+		return function{}, err
+	}
+	var thenew function
+	file, err := os.Open(name)
+
+	thenew.dir, err = os.Getwd()
+	if err != nil {
+		return function{}, err
+	}
+	err = os.Chdir(normal)
+	if err != nil {
+		return function{}, err
+	}
+	if err != nil {
+		return function{}, err
+	}
 	thenew.path = name
 	argchecker := bufio.NewScanner(file)
 	var args []lexer.Ast
@@ -737,7 +892,7 @@ func itlookslikeastring(this lexer.Ast) bool {
 	}
 	return s[0] == '"' && s[len(s)-1] == '"'
 }
-func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keyword string,line int, err error) {
+func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keyword string, line int, err error) {
 	if usages.stuff == nil {
 		usages.stuff = make(variables)
 	}
@@ -777,6 +932,9 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			keyword = "return"
 			var vars []variable
 			vars, err = usages.tuple(ast[1:])
+			if err != nil {
+				return
+			}
 			if len(vars) != len(context.returns) {
 				err = fmt.Errorf("expected %v got %v", vars, context.returns)
 			}
@@ -790,18 +948,18 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 		} else if ast[0].Value() == "include" {
 			packagepath := ast[1].Value()
 			if !itlookslikeastring(ast[1]) {
-				err = fmt.Errorf("%v does not look like a string",packagepath)
+				err = fmt.Errorf("%v does not look like a string", packagepath)
 				return
 			}
 			packagepath = packagepath[1 : len(packagepath)-1]
-			packagesplit := strings.Split(packagepath,"/")
+			packagesplit := strings.Split(packagepath, "/")
 			packagename := packagesplit[len(packagesplit)-1]
 			funcnames, err2 := os.ReadDir(packagepath)
 			if err2 != nil {
 				err = err2
 				return
 			}
-			packagename = strings.ReplaceAll(packagename," ","")
+			packagename = strings.ReplaceAll(packagename, " ", "")
 			usages.packaged[packagename] = make(functions)
 			var collective error
 			for _, e := range funcnames {
@@ -809,7 +967,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 					collective = errors.Join(collective, fmt.Errorf("cant have subdir in package %v", e.Name()))
 					continue
 				}
-				usages.packaged[packagename][e.Name()], err = usages.newfunc(packagepath,packagepath + "/" + e.Name())
+				usages.packaged[packagename][e.Name()], err = usages.newfunc(packagepath, e.Name())
 				collective = errors.Join(collective, err)
 			}
 			if collective != nil {
@@ -819,13 +977,13 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 		} else if ast[0].Value() == "find" {
 			namestring := ast[1].Value()
 			if !itlookslikeastring(ast[1]) {
-				err = fmt.Errorf("%v does not look like a string",namestring)
+				err = fmt.Errorf("%v does not look like a string", namestring)
 				return
 			}
 			name := namestring[1 : len(namestring)-1]
 			var current string
-			current ,err = os.Getwd()
-			usages.funcs[name], err = usages.newfunc(current,name)
+			current, err = os.Getwd()
+			usages.funcs[name], err = usages.newfunc(current, name)
 			if err != nil {
 				return
 			}
@@ -978,7 +1136,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				fmt.Println(err)
 				continue
 			}
-			condition, err = v.asint()
+			condition, err = asint(v)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -1012,7 +1170,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				return
 			}
 			if condition >= 1 {
-				keyword,line, err = context.eval(bufio.NewScanner(strings.NewReader(ifLambda)), usages.refer())
+				keyword, line, err = context.eval(bufio.NewScanner(strings.NewReader(ifLambda)), usages.refer())
 				if keyword == "return" {
 					return
 				}
@@ -1020,7 +1178,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 					return
 				}
 			} else {
-				keyword,line, err = context.eval(bufio.NewScanner(strings.NewReader(elseLambda)), usages.refer())
+				keyword, line, err = context.eval(bufio.NewScanner(strings.NewReader(elseLambda)), usages.refer())
 				if keyword == "return" {
 					return
 				}
@@ -1054,7 +1212,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			if !(lambdast[0].Value() == "end" && lambdast[len(lambdast)-1].Value() == "loop") {
 				err = fmt.Errorf("loop with no end")
 				return
-				
+
 			}
 			var returnedkeyword string
 			var condition int
@@ -1066,11 +1224,11 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 					return
 				}
 
-				condition, err = v.asint()
+				condition, err = asint(v)
 				if err != nil {
 					return
 				}
-				returnedkeyword,line, err = f.eval(bufio.NewScanner(strings.NewReader(lambda)), usages.refer())
+				returnedkeyword, line, err = f.eval(bufio.NewScanner(strings.NewReader(lambda)), usages.refer())
 				switch returnedkeyword {
 				case "break":
 					break
@@ -1088,11 +1246,11 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			var returned []variable
 			returned, err = usages.call(ast)
 			if err != nil {
-				return 
+				return
 			}
 			if len(returned) != 0 {
-				err = fmt.Errorf("%v return variables ignored",filesline)
-				return 
+				err = fmt.Errorf("%v return variables ignored", filesline)
+				return
 			}
 		} else {
 			fmt.Println("error", filesline, "looks like gibberish")
@@ -1115,9 +1273,9 @@ func main() {
 	var f function
 	var keyword string
 	var line int
-	keyword,line, err = f.eval(bufio.NewScanner(file), interpreter{})
+	keyword, line, err = f.eval(bufio.NewScanner(file), interpreter{})
 	if err != nil {
-		fmt.Printf("main:%v:%v\n",line,err)
+		fmt.Printf("main:%v:%v\n", line, err)
 	}
 	if keyword != "return" && keyword != "" {
 		fmt.Println("error stray", keyword)
