@@ -994,7 +994,6 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				}
 					
 			}
-			fmt.Println(usages.structs[structname],structname)
 			if err != nil {
 				return
 			}
