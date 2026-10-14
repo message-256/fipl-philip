@@ -13,8 +13,6 @@ import (
 	"unicode"
 )
 
-// i use as<type>()s becuase it simplifys aritmatic
-// most of the reason why i use this is becuase generics are dumb for things other that [single any, array []single]
 type variable interface {
 	getindex([]variable) (variable, error)
 	setindex([]variable, variable) error
@@ -35,10 +33,14 @@ type function struct {
 	returns  []variable
 	argnames []string
 }
+type structure struct {
+	vars map[string]string
+}
 type functions map[string]function
 type interpreter struct {
 	packagename string
 	packaged    map[string]functions
+	structs     map[string]structure
 	funcs       functions
 	stuff       variables
 }
@@ -76,13 +78,12 @@ func (arr *internalArray) len() (variable, error) {
 func (s *internalString) len() (variable, error) {
 	return newInternalInt(len(s.value)), nil
 }
-func (f *internalFloat)len()(variable,error) {
-	return nil,fmt.Errorf("cant len float")
+func (f *internalFloat) len() (variable, error) {
+	return nil, fmt.Errorf("cant len float")
 }
 func (i *internalInt) len() (variable, error) {
 	return nil, errors.New("cant len scalar")
 }
-
 
 func (st *internalStruct) append(v variable) (variable, error) {
 	return nil, fmt.Errorf("cant append %v its a struct", st.typename)
@@ -101,13 +102,12 @@ func (s *internalString) append(v variable) (variable, error) {
 	}
 	return newInternalString(s.value + s2), nil
 }
-func(f *internalFloat)append(v variable)(variable,error) {
-	return nil,fmt.Errorf("cant append to float")
+func (f *internalFloat) append(v variable) (variable, error) {
+	return nil, fmt.Errorf("cant append to float")
 }
 func (i *internalInt) append(v variable) (variable, error) {
 	return nil, errors.New("cannot append to scalar")
 }
-
 
 func (st *internalStruct) getindex(index []variable) (variable, error) {
 
@@ -148,8 +148,8 @@ func (s *internalString) getindex(index []variable) (variable, error) {
 		typename: "byte",
 	}, nil
 }
-func (f *internalFloat)getindex(index []variable) (variable,error) {
-	return nil,fmt.Errorf("cant index type float")
+func (f *internalFloat) getindex(index []variable) (variable, error) {
+	return nil, fmt.Errorf("cant index type float")
 }
 func (i *internalInt) getindex(index []variable) (variable, error) {
 	return nil, errors.New("cannot index type int")
@@ -183,7 +183,7 @@ func (arr *internalArray) setindex(index []variable, value variable) error {
 func (s *internalString) setindex(dimensions []variable, value variable) error {
 	return errors.New("strings are read only")
 }
-func (f* internalFloat)setindex(index []variable,value variable) error {
+func (f *internalFloat) setindex(index []variable, value variable) error {
 	return fmt.Errorf("cant index type float")
 }
 func (i *internalInt) setindex(index []variable, value variable) error {
@@ -199,7 +199,7 @@ func (arr *internalArray) typeof() string {
 func (s *internalString) typeof() string {
 	return s.typename
 }
-func (f *internalFloat)typeof() string {
+func (f *internalFloat) typeof() string {
 	return f.typename
 }
 func (i *internalInt) typeof() string {
@@ -219,7 +219,7 @@ func (arr *internalArray) realtype() string {
 func (s *internalString) realtype() string {
 	return "string"
 }
-func (f *internalFloat)realtype() string {
+func (f *internalFloat) realtype() string {
 	return "float"
 }
 func (i *internalInt) realtype() string {
@@ -236,7 +236,7 @@ func (s *internalString) retype(typename string) error {
 	s.typename = typename
 	return nil
 }
-func (f *internalFloat)retype(newtype string) error {
+func (f *internalFloat) retype(newtype string) error {
 	f.typename = newtype
 	return nil
 }
@@ -279,10 +279,10 @@ func (s *internalString) assign(input variable) error {
 	return err
 
 }
-func(f *internalFloat)assign(input variable) error {
-	f2,ok := input.(*internalFloat)
+func (f *internalFloat) assign(input variable) error {
+	f2, ok := input.(*internalFloat)
 	if !ok {
-		return fmt.Errorf("cant assign typr %v to float",input.typeof())
+		return fmt.Errorf("cant assign typr %v to float", input.typeof())
 	}
 	f.value = f2.value
 	return nil
@@ -304,11 +304,11 @@ func (arr *internalArray) String() string {
 	return collector
 
 }
-func(f *internalFloat)String() string {
+func (f *internalFloat) String() string {
 	if f == nil {
 		return fmt.Sprintf("error:internal nil variable ")
 	}
-	return fmt.Sprintf("%v",f.value)
+	return fmt.Sprintf("%v", f.value)
 }
 func (i *internalInt) String() string {
 	if i == nil {
@@ -331,7 +331,7 @@ func newInternalInt(i int) variable {
 }
 func newInternalFloat(f float32) variable {
 	return &internalFloat{
-		value:f,
+		value:    f,
 		typename: "float",
 	}
 }
@@ -406,7 +406,7 @@ func bfloat(b bool) float32 {
 	if b {
 		return 1
 	}
-	return 0	
+	return 0
 }
 func asint(v variable) (int, error) {
 	i, ok := v.(*internalInt)
@@ -422,12 +422,12 @@ func asstring(v variable) (string, error) {
 	}
 	return s.value, nil
 }
-func asfloat(v variable)(float32,error) {
-	f,ok := v.(*internalFloat)
+func asfloat(v variable) (float32, error) {
+	f, ok := v.(*internalFloat)
 	if !ok {
 		return 0, fmt.Errorf("cant convert %v to type float", v.typeof())
 	}
-	return f.value,nil
+	return f.value, nil
 }
 func (context interpreter) fexpr(this []lexer.Ast) (variable, error) {
 	if this[0].Type() != "data" && this[0].Type() != "perenthesis" {
@@ -454,7 +454,7 @@ func (context interpreter) fexpr(this []lexer.Ast) (variable, error) {
 			return nil, err
 		}
 		if v.typeof() != expressionT {
-			return nil,fmt.Errorf("cant convert type %v to %v",v.typeof(),expressionT)
+			return nil, fmt.Errorf("cant convert type %v to %v", v.typeof(), expressionT)
 		}
 		b, err := asfloat(v)
 		if err != nil {
@@ -484,7 +484,7 @@ func (context interpreter) fexpr(this []lexer.Ast) (variable, error) {
 		default:
 			return nil, fmt.Errorf("uncased operation %v", oppername)
 		}
-		next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "."})
+		next = slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "." })
 		if next == -1 {
 			next = len(this) - 1
 		}
@@ -520,7 +520,7 @@ func (context interpreter) iexpr(this []lexer.Ast) (variable, error) {
 			return nil, err
 		}
 		if v.typeof() != expressionT {
-			return nil,fmt.Errorf("cant convert type %v to %v",v.typeof(),expressionT)
+			return nil, fmt.Errorf("cant convert type %v to %v", v.typeof(), expressionT)
 		}
 		b, err := asint(v)
 		if err != nil {
@@ -562,21 +562,24 @@ func (context interpreter) iexpr(this []lexer.Ast) (variable, error) {
 	}
 	return newInternalInt(a), nil
 }
-func (context interpreter)expr(this []lexer.Ast)(variable,error){
+
+// funcs like this arent my thing
+// but i didnt feel like changing how expr does stuff
+func (context interpreter) expr(this []lexer.Ast) (variable, error) {
 	i := slices.IndexFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "." })
 	if i == -1 {
-		return nil,fmt.Errorf("something weird found its way to expr")
+		return nil, fmt.Errorf("something weird found its way to expr")
 	}
-	v,err := context.valueof(this[:i])
+	v, err := context.valueof(this[:i])
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	if v.realtype() == "float" {
 		return context.fexpr(this)
 	} else if v.realtype() == "int" {
 		return context.iexpr(this)
-	} 
-	return nil,fmt.Errorf("cant do arithmatic with type %v",v.typeof())
+	}
+	return nil, fmt.Errorf("cant do arithmatic with type %v", v.typeof())
 }
 func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 	var perens []lexer.Ast
@@ -700,19 +703,19 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 		return newInternalArray(newarray), nil
 
 	}
-	if slices.ContainsFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "."}) || this[0].Value() == "()" {
+	if slices.ContainsFunc(this, func(a lexer.Ast) bool { return a.Type() == "arithmatic" && a.Value() != "." }) || this[0].Value() == "()" {
 		return context.expr(this)
 	}
 	if itlookslikeanattribute(this) {
 		if unicode.IsDigit(rune(this[0].Value()[0])) && unicode.IsDigit(rune(this[2].Value()[0])) {
-			f,err := strconv.ParseFloat(this[0].Value() + this[1].Value() + this[2].Value(),32)
+			f, err := strconv.ParseFloat(this[0].Value()+this[1].Value()+this[2].Value(), 32)
 			if err != nil {
-				return nil,err
+				return nil, err
 			}
-			return newInternalFloat(float32(f)),nil
+			return newInternalFloat(float32(f)), nil
 		}
 	}
-	
+
 	if itlookslikeafunctioncall(this) {
 		returned, err := context.call(this)
 		if err != nil {
@@ -723,7 +726,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 		}
 		return returned[0], nil
 	}
-	
+
 	if len(this) > 1 {
 		if this[0].Value() == "len" && this[1].Value() == "()" {
 			v, err := context.valueof(this[1].Inner())
@@ -801,11 +804,15 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 	return returned, nil
 }
 func (context interpreter) refer() interpreter {
-	return interpreter{stuff: maps.Clone(context.stuff), funcs: maps.Clone(context.funcs), packaged: maps.Clone(context.packaged)}
+	return interpreter{
+		stuff: maps.Clone(context.stuff),
+		funcs: maps.Clone(context.funcs), 
+		packaged: maps.Clone(context.packaged),
+	}
 }
 func (context variables) New(this lexer.Ast, initial variable) error {
 	if unicode.IsDigit(rune(this.Value()[0])) || this.Type() != "data" {
-		return errors.New(fmt.Sprint(this, ":cant start variable name with number."))
+		return fmt.Errorf("%v:cant start variable name with number.",this)
 
 	}
 	context[this.Value()] = new(variable)
@@ -902,6 +909,9 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 	if usages.packaged == nil {
 		usages.packaged = make(map[string]functions)
 	}
+	if usages.structs == nil {
+			usages.structs = make(map[string]structure)
+	}
 	for i := range context.args {
 		usages.stuff[context.argnames[i]] = new(variable)
 		*usages.stuff[context.argnames[i]] = context.args[i]
@@ -945,6 +955,49 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				}
 			}
 			return
+		} else if ast[0].Value() == "structure" {
+			structpath := ast[1].Value()
+			if !itlookslikeastring(ast[1]) {
+				err = fmt.Errorf("%v does not look like a string", structpath)
+				return
+			}
+			structpath = structpath[1 : len(structpath)-1]
+
+			f, err2 := os.Open(structpath)
+			if err2 != nil {
+				err = err2
+			}
+			liner := bufio.NewScanner(f)
+			splitpath := strings.Split(structpath,"/")
+			structname := splitpath[len(splitpath)-1]
+			usages.structs[structname]= structure{vars:make(map[string]string)}
+			for liner.Scan() {
+				ast, err2 := lexer.Lex(liner.Text())
+				if err2 != nil {
+					err = err2
+					return
+				}
+				split := lexer.SplitFunc(ast,func(a lexer.Ast) bool {return a.Value() == ","})
+				var line_T string
+				tt := split[len(split)-1][1:]
+				for i := range tt {
+					line_T+=tt[i].Value()
+				}
+				split[len(split)-1] = split[len(split)-1][:1]
+				for i := range split {
+					if len(split[i]) > 1 {
+						err = errors.Join(err,fmt.Errorf("invalid number of tokens in declaration %v",split[i]))
+					} else if split[i][0].Type() != "data" {
+						err = errors.Join(err,fmt.Errorf("invalid token in declaration %v",split[i]))
+					}
+					usages.structs[structname].vars[split[i][0].Value()] = line_T
+				}
+					
+			}
+			fmt.Println(usages.structs[structname],structname)
+			if err != nil {
+				return
+			}
 		} else if ast[0].Value() == "include" {
 			packagepath := ast[1].Value()
 			if !itlookslikeastring(ast[1]) {

@@ -221,6 +221,7 @@ func SplitFunc(a []Ast, splitter func(Ast)bool) [][]Ast {
 	for len(a) != 0 {
 		next := slices.IndexFunc(a,splitter)
 		if next == -1 {
+			
 			return append(returned,a)
 		}
 		returned = append(returned,a[:next])
