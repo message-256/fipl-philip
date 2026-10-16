@@ -759,7 +759,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 				return nil,err
 			}
 			if v == nil {
-				return newInternalString("nil")
+				return newInternalString("nil"),nil
 			}
 			return newInternalString(v.typeof()),nil
 		}
