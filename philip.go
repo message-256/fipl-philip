@@ -591,6 +591,38 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 	var ok bool
 	var f function
 	if this[0].Type() == "data" && this[1].Value() == "()" {
+		if this[0].Value() == "len" {
+			v, err := context.valueof(this[1].Inner())
+			if err != nil {
+				return nil, err
+			}
+			if v == nil {
+				return nil, errors.New("len nil value")
+			}
+			v2,err := v.len()
+			return []variable{v2},err
+		}
+		if this[0].Value() == "append" {
+			v, err := context.tuple(this[1].Inner())
+			if err != nil {
+				return nil, err
+			}
+			if v == nil {
+				return nil, errors.New("append nil value")
+			}
+			v2,err := v[0].append(v[1])
+			return []variable{v2},err
+		}
+		if this[0].Value() == "type" {
+			v,err := context.valueof(this[1].Inner())
+			if err != nil {
+				return nil,err
+			}
+			if v == nil {
+				return []variable{newInternalString("nil")},nil
+			}
+			return []variable{newInternalString(v.typeof())},nil
+		}
 		name := this[0].Value()
 		f, ok = context.funcs[name]
 		if !ok {
@@ -611,6 +643,7 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 		}
 
 	}
+		
 	args, err := context.tuple(perens)
 	if err != nil {
 		return nil, err
@@ -722,17 +755,6 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	}
 
 	if itlookslikeafunctioncall(this) {
-		returned, err := context.call(this)
-		if err != nil {
-			return nil, err
-		}
-		if len(returned) != 1 {
-			return nil, fmt.Errorf("expected 1 have %d", len(returned))
-		}
-		return returned[0], nil
-	}
-
-	if len(this) > 1 {
 		if this[0].Value() == "len" && this[1].Value() == "()" {
 			v, err := context.valueof(this[1].Inner())
 			if err != nil {
@@ -763,6 +785,18 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 			}
 			return newInternalString(v.typeof()),nil
 		}
+		returned, err := context.call(this)
+		if err != nil {
+			return nil, err
+		}
+		if len(returned) != 1 {
+			return nil, fmt.Errorf("expected 1 have %d", len(returned))
+		}
+		return returned[0], nil
+	}
+
+	if len(this) > 1 {
+		
 		if this[0].Value() == "[]" {
 			var dimensions []variable
 			for i := range this {
@@ -799,6 +833,7 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 	var returned []variable
 
 	if itlookslikeafunctioncall(this) {
+		
 		return context.call(this)
 	}
 	stuff := lexer.Split(this, lexer.Looker{Value: ","})
