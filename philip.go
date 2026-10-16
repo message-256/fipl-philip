@@ -360,6 +360,9 @@ func copyof(v variable) variable {
 	case "int":
 		i, _ := asint(v)
 		return newInternalInt(i)
+	case "float":
+		f,_ := asfloat(v)
+		return newInternalFloat(f)
 	case "[]":
 		var a1 []variable
 		a2, _ := v.(*internalArray)
@@ -376,6 +379,8 @@ func newVariableOfTypeName(typename string) (variable, error) {
 		return newInternalString(""), nil
 	case "int":
 		return newInternalInt(0), nil
+	case "float":
+		return newInternalFloat(0),nil
 	}
 	return nil, errors.New("unknown type " + typename)
 }
@@ -748,7 +753,16 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 			}
 			return v[0].append(v[1])
 		}
-
+		if this[0].Value() == "type" && this[1].Value() == "()" {
+			v,err := context.valueof(this[1].Inner())
+			if err != nil {
+				return nil,err
+			}
+			if v == nil {
+				return newInternalString("nil")
+			}
+			return newInternalString(v.typeof()),nil
+		}
 		if this[0].Value() == "[]" {
 			var dimensions []variable
 			for i := range this {
