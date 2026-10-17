@@ -251,3 +251,14 @@ func Split(a []Ast,b Looker) [][]Ast {
 	}
 	return SplitFunc(a,indexer)
 }
+func Compare(this []Ast,against ...string) bool {
+	if len(against) != len(this) {
+		return false
+	}
+	for i := range against {
+		if against[i] != this[i].Value() {
+			return false
+		}
+	}
+	return true
+}
