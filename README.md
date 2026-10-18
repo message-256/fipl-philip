@@ -73,4 +73,3 @@ stuff from packages is called by name.function
 ```
 print(math.negate(1))
 ```
-
