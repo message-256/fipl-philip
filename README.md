@@ -64,4 +64,13 @@ filename:fy
 (input int)(int)
 return input
 ```
+packages are dirs
+```
+#we find abs and negate
+include "stdlib/math"
+```
+stuff from packages is called by name.function
+```
+print(math.negate(1))
+```
 
