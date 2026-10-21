@@ -755,36 +755,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	}
 
 	if itlookslikeafunctioncall(this) {
-		if this[0].Value() == "len" && this[1].Value() == "()" {
-			v, err := context.valueof(this[1].Inner())
-			if err != nil {
-				return nil, err
-			}
-			if v == nil {
-				return nil, errors.New("len nil value")
-			}
-			return v.len()
-		}
-		if this[0].Value() == "append" && this[1].Value() == "()" {
-			v, err := context.tuple(this[1].Inner())
-			if err != nil {
-				return nil, err
-			}
-			if v == nil {
-				return nil, errors.New("append nil value")
-			}
-			return v[0].append(v[1])
-		}
-		if this[0].Value() == "type" && this[1].Value() == "()" {
-			v,err := context.valueof(this[1].Inner())
-			if err != nil {
-				return nil,err
-			}
-			if v == nil {
-				return newInternalString("nil"),nil
-			}
-			return newInternalString(v.typeof()),nil
-		}
+	
 		returned, err := context.call(this)
 		if err != nil {
 			return nil, err
@@ -796,7 +767,16 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	}
 
 	if len(this) > 1 {
-		
+		if len(this) > 3 {
+			if this[0].Type() == "data" && this[len(this)-2].Value() == "." && this[len(this)-1].Type() == "data" {
+				index := newInternalString(this[len(this)-1].Value())
+				v ,err := context.valueof(this[:len(this)-2])
+				if err != nil {
+					return nil,err
+				}
+				return v.getindex([]variable{index})
+			}
+		}
 		if this[0].Value() == "[]" {
 			var dimensions []variable
 			for i := range this {

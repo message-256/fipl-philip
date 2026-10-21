@@ -203,7 +203,7 @@ type Looker struct {
 	Value string
 }
 
-func YouSee(a []Ast,b []Looker) bool {
+func YouSee(a []Ast,b ...Looker) bool {
 	if len(a) != len(b) {
 		return false
 	}
