@@ -41,7 +41,6 @@ arithmatic is evaluated from left to right perens up the queue so
 print(1+1/2)
 
 ```
-
 function calls are normal
 ```
 fx(1)
@@ -73,3 +72,4 @@ stuff from packages is called by name.function
 ```
 print(math.negate(1))
 ```
+above: to simplify rules i dont plan to implement ! or - negation becuase !{value{opp;value}*} if they are
