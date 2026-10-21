@@ -71,5 +71,5 @@ include "stdlib/math"
 stuff from packages is called by name.function
 ```
 print(math.negate(1))
-```
-above: to simplify rules i dont plan to implement ! or - negation becuase !{value{opp;value}*} if they are
+``` 
+above: to simplify rules i dont plan to implement ! or - negation
