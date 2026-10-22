@@ -161,8 +161,13 @@ func Lex(this string) ([]Ast,error){
 		
 		if notbracketSpecialCharacter(rune(this[0])){
 			i := strings.IndexFunc(this,func(c rune ) bool {return !notbracketSpecialCharacter(c)})
-			returned = append(returned,arithmatic{name:string(this[:i])})
-			this = this[i:]	
+			if i == -1 {
+				returned = append(returned,arithmatic{name:string(this[0])})
+				this = this[1:]
+			} else {
+				returned = append(returned,arithmatic{name:string(this[:i])})
+				this = this[i:]
+			}
 		}else if this[0] == '"'{
 			if peek(this,0) == '"' {
 				returned = append(returned,data{name:"\"\""})

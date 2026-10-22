@@ -15,6 +15,7 @@ func TestLexer(tester *testing.T) {
 				"(1==1)",
 				`include "hello/stuff"`,
 				"print(,hello)",
+				"+1+2+",
 				}
 	for i := range tests {
 		fmt.Println("giving:",tests[i])
