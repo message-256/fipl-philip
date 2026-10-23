@@ -207,11 +207,12 @@ func (i *internalInt) typeof() string {
 }
 
 func (st *internalStruct) realtype() string {
-	var name string = "struct{"
+	var name strings.Builder
+	name.WriteString("struct{")
 	for i := range st.fields {
-		name += fmt.Sprintf("%v,", st.fields[i].typeof())
+		name.WriteString(fmt.Sprintf("%v,", st.fields[i].typeof()))
 	}
-	return name + "}"
+	return name.String() + "}"
 }
 func (arr *internalArray) realtype() string {
 	return "[]"
@@ -297,11 +298,11 @@ func (arr *internalArray) String() string {
 	if arr == nil {
 		return fmt.Sprintf("error:internal nil variable ")
 	}
-	var collector string
+	var collector strings.Builder
 	for i := range arr.stuff {
-		collector += fmt.Sprintf("%v,", arr.stuff[i])
+		collector.WriteString(fmt.Sprintf("%v,", arr.stuff[i]))
 	}
-	return collector
+	return collector.String()
 
 }
 func (f *internalFloat) String() string {
@@ -361,7 +362,7 @@ func copyof(v variable) variable {
 		i, _ := asint(v)
 		return newInternalInt(i)
 	case "float":
-		f,_ := asfloat(v)
+		f, _ := asfloat(v)
 		return newInternalFloat(f)
 	case "[]":
 		var a1 []variable
@@ -380,7 +381,7 @@ func newVariableOfTypeName(typename string) (variable, error) {
 	case "int":
 		return newInternalInt(0), nil
 	case "float":
-		return newInternalFloat(0),nil
+		return newInternalFloat(0), nil
 	}
 	return nil, errors.New("unknown type " + typename)
 }
@@ -599,8 +600,8 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 			if v == nil {
 				return nil, errors.New("len nil value")
 			}
-			v2,err := v.len()
-			return []variable{v2},err
+			v2, err := v.len()
+			return []variable{v2}, err
 		}
 		if this[0].Value() == "append" {
 			v, err := context.tuple(this[1].Inner())
@@ -610,18 +611,18 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 			if v == nil {
 				return nil, errors.New("append nil value")
 			}
-			v2,err := v[0].append(v[1])
-			return []variable{v2},err
+			v2, err := v[0].append(v[1])
+			return []variable{v2}, err
 		}
 		if this[0].Value() == "type" {
-			v,err := context.valueof(this[1].Inner())
+			v, err := context.valueof(this[1].Inner())
 			if err != nil {
-				return nil,err
+				return nil, err
 			}
 			if v == nil {
-				return []variable{newInternalString("nil")},nil
+				return []variable{newInternalString("nil")}, nil
 			}
-			return []variable{newInternalString(v.typeof())},nil
+			return []variable{newInternalString(v.typeof())}, nil
 		}
 		name := this[0].Value()
 		f, ok = context.funcs[name]
@@ -643,7 +644,7 @@ func (context interpreter) call(this []lexer.Ast) ([]variable, error) {
 		}
 
 	}
-		
+
 	args, err := context.tuple(perens)
 	if err != nil {
 		return nil, err
@@ -755,7 +756,7 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 	}
 
 	if itlookslikeafunctioncall(this) {
-	
+
 		returned, err := context.call(this)
 		if err != nil {
 			return nil, err
@@ -770,9 +771,9 @@ func (context interpreter) valueof(this []lexer.Ast) (variable, error) {
 		if len(this) > 3 {
 			if this[0].Type() == "data" && this[len(this)-2].Value() == "." && this[len(this)-1].Type() == "data" {
 				index := newInternalString(this[len(this)-1].Value())
-				v ,err := context.valueof(this[:len(this)-2])
+				v, err := context.valueof(this[:len(this)-2])
 				if err != nil {
-					return nil,err
+					return nil, err
 				}
 				return v.getindex([]variable{index})
 			}
@@ -813,7 +814,7 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 	var returned []variable
 
 	if itlookslikeafunctioncall(this) {
-		
+
 		return context.call(this)
 	}
 	stuff := lexer.Split(this, lexer.Looker{Value: ","})
@@ -834,14 +835,14 @@ func (context interpreter) tuple(this []lexer.Ast) ([]variable, error) {
 }
 func (context interpreter) refer() interpreter {
 	return interpreter{
-		stuff: maps.Clone(context.stuff),
-		funcs: maps.Clone(context.funcs), 
+		stuff:    maps.Clone(context.stuff),
+		funcs:    maps.Clone(context.funcs),
 		packaged: maps.Clone(context.packaged),
 	}
 }
 func (context variables) New(this lexer.Ast, initial variable) error {
 	if unicode.IsDigit(rune(this.Value()[0])) || this.Type() != "data" {
-		return fmt.Errorf("%v:cant start variable name with number.",this)
+		return fmt.Errorf("%v:cant start variable name with number.", this)
 
 	}
 	context[this.Value()] = new(variable)
@@ -939,7 +940,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 		usages.packaged = make(map[string]functions)
 	}
 	if usages.structs == nil {
-			usages.structs = make(map[string]structure)
+		usages.structs = make(map[string]structure)
 	}
 	for i := range context.args {
 		usages.stuff[context.argnames[i]] = new(variable)
@@ -997,31 +998,31 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				err = err2
 			}
 			liner := bufio.NewScanner(f)
-			splitpath := strings.Split(structpath,"/")
+			splitpath := strings.Split(structpath, "/")
 			structname := splitpath[len(splitpath)-1]
-			usages.structs[structname]= structure{vars:make(map[string]string)}
+			usages.structs[structname] = structure{vars: make(map[string]string)}
 			for liner.Scan() {
 				ast, err2 := lexer.Lex(liner.Text())
 				if err2 != nil {
 					err = err2
 					return
 				}
-				split := lexer.SplitFunc(ast,func(a lexer.Ast) bool {return a.Value() == ","})
-				var line_T string
+				split := lexer.SplitFunc(ast, func(a lexer.Ast) bool { return a.Value() == "," })
+				var line_T strings.Builder
 				tt := split[len(split)-1][1:]
 				for i := range tt {
-					line_T+=tt[i].Value()
+					line_T.WriteString(tt[i].Value())
 				}
 				split[len(split)-1] = split[len(split)-1][:1]
 				for i := range split {
 					if len(split[i]) > 1 {
-						err = errors.Join(err,fmt.Errorf("invalid number of tokens in declaration %v",split[i]))
+						err = errors.Join(err, fmt.Errorf("invalid number of tokens in declaration %v", split[i]))
 					} else if split[i][0].Type() != "data" {
-						err = errors.Join(err,fmt.Errorf("invalid token in declaration %v",split[i]))
+						err = errors.Join(err, fmt.Errorf("invalid token in declaration %v", split[i]))
 					}
-					usages.structs[structname].vars[split[i][0].Value()] = line_T
+					usages.structs[structname].vars[split[i][0].Value()] = line_T.String()
 				}
-					
+
 			}
 			if err != nil {
 				return
@@ -1269,7 +1270,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 			}
 		} else if ast[0].Value() == "for" && ast[len(ast)-1].Value() == "loop" {
 			expression := ast[1 : len(ast)-1]
-			var lambda string
+			var lambda strings.Builder
 			var sp int = 1
 			var collective error
 			var lambdast []lexer.Ast
@@ -1287,7 +1288,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				if sp == 0 {
 					break
 				}
-				lambda += filesline + "\n"
+				lambda.WriteString(filesline + "\n")
 
 			}
 			if !(lambdast[0].Value() == "end" && lambdast[len(lambdast)-1].Value() == "loop") {
@@ -1309,7 +1310,7 @@ func (context function) eval(scanner *bufio.Scanner, usages interpreter) (keywor
 				if err != nil {
 					return
 				}
-				returnedkeyword, line, err = f.eval(bufio.NewScanner(strings.NewReader(lambda)), usages.refer())
+				returnedkeyword, line, err = f.eval(bufio.NewScanner(strings.NewReader(lambda.String())), usages.refer())
 				switch returnedkeyword {
 				case "break":
 					break
